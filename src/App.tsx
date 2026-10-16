@@ -324,7 +324,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-obsidian-950 flex flex-col font-sans">
+    <div className="min-h-screen bg-void-950 flex flex-col font-sans">
       <Header
         hardware={hardware}
         queueCount={queue.length}
@@ -335,15 +335,15 @@ export const App: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Error Banner */}
         {errorBanner && (
-          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start space-x-3 text-rose-300 text-xs">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+          <div className="p-4 rounded-2xl bg-prism-rose/10 border border-prism-rose/30 flex items-start space-x-3 text-rose-200 text-xs shadow-lg animate-fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-prism-rose" />
             <div className="flex-1">
-              <span className="font-semibold block">Notice:</span>
+              <span className="font-bold block text-white">System Advisory:</span>
               <span>{errorBanner}</span>
             </div>
             <button
               onClick={() => setErrorBanner(null)}
-              className="text-rose-400 hover:text-white"
+              className="text-slate-400 hover:text-white font-bold px-1"
             >
               ×
             </button>
@@ -371,7 +371,7 @@ export const App: React.FC = () => {
                 <ModeSelector currentMode={mode} onModeChange={setMode} />
 
                 {/* Dynamic Configuration Panel */}
-                <div className="glass-panel rounded-2xl p-6 border border-obsidian-700/70 shadow-xl">
+                <div className="studio-card rounded-2xl p-6 border border-white/[0.08] shadow-2xl relative overflow-hidden">
                   {mode === 'simple' && (
                     <SimpleMode
                       config={simpleConfig}
@@ -400,24 +400,24 @@ export const App: React.FC = () => {
                 {/* Pre-Flight Estimate Card */}
                 <EstimateBadge estimate={estimate} isLoading={isEstimating} />
 
-                {/* Action Buttons */}
+                {/* Action Controls */}
                 <div className="flex items-center space-x-3 pt-2">
                   <button
                     onClick={handleStartCompression}
                     disabled={isEncoding || isAnalyzing}
-                    className="flex-1 py-3.5 px-6 rounded-xl bg-gradient-to-r from-brand-blue via-brand-indigo to-brand-violet hover:opacity-95 disabled:opacity-50 text-white text-sm font-bold shadow-glow-blue transition-all flex items-center justify-center space-x-2"
+                    className="btn-aperture-trigger flex-1 py-4 px-6 rounded-2xl text-sm font-bold tracking-tight disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center space-x-2.5 cursor-pointer"
                   >
-                    <Play className="w-4 h-4 ml-0.5" />
-                    <span>Start Compression</span>
+                    <Play className="w-4 h-4 fill-white" />
+                    <span>Initialize Compression</span>
                   </button>
 
                   <button
                     onClick={handleAddToQueue}
                     disabled={isEncoding || isAnalyzing}
-                    className="px-4 py-3.5 rounded-xl bg-obsidian-800 hover:bg-obsidian-700 border border-obsidian-600/70 text-slate-200 text-xs font-semibold transition-colors flex items-center space-x-1.5"
+                    className="px-5 py-4 rounded-2xl bg-void-900 hover:bg-void-850 border border-white/10 hover:border-prism-cyan/40 text-slate-200 text-xs font-semibold transition-all shadow-glass-rim flex items-center space-x-2 disabled:opacity-40"
                     title="Add to batch queue"
                   >
-                    <Layers className="w-4 h-4 text-brand-blue" />
+                    <Layers className="w-4 h-4 text-prism-cyan" />
                     <span className="hidden sm:inline">Add to Queue</span>
                   </button>
                 </div>
@@ -448,16 +448,20 @@ export const App: React.FC = () => {
 
             {/* Idle Placeholder when no active encoding or result */}
             {!isEncoding && !result && (
-              <div className="p-8 rounded-2xl border border-dashed border-obsidian-700/60 bg-obsidian-900/40 text-center flex flex-col items-center justify-center space-y-3 min-h-[280px]">
-                <div className="w-12 h-12 rounded-xl bg-obsidian-800/80 border border-obsidian-700 flex items-center justify-center text-slate-400">
-                  <Sparkles className="w-6 h-6 text-brand-blue/70" />
+              <div className="studio-card rounded-2xl p-8 text-center flex flex-col items-center justify-center space-y-4 min-h-[300px] border border-white/[0.06] relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-radial from-prism-cyan/[0.04] via-transparent to-transparent pointer-events-none" />
+
+                <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-void-900 border border-white/10 shadow-glass-rim">
+                  <Sparkles className="w-7 h-7 text-prism-cyan/80" />
+                  <div className="absolute inset-0 rounded-2xl border border-prism-cyan/20 animate-pulse" />
                 </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-300">
-                    Studio Telemetry & Comparison Hub
+
+                <div className="relative z-10 max-w-xs">
+                  <h4 className="text-sm font-bold text-white tracking-tight">
+                    Studio Telemetry & Monitoring Deck
                   </h4>
-                  <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
-                    Select your video and compression profile on the left. Live encoding FPS, speed multiplier, and interactive video comparison will appear here.
+                  <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                    Select a target media file and compression profile. Live encoding FPS, real-time bitrate metrics, and dual-frame video comparison will render here.
                   </p>
                 </div>
               </div>

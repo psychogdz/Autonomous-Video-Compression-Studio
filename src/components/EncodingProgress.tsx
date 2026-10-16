@@ -22,29 +22,31 @@ export const EncodingProgress: React.FC<EncodingProgressProps> = ({
 
   const stageLabel =
     progress.stage === 'pass_1'
-      ? 'Pass 1 of 2: Analyzing Motion & Complexity'
+      ? 'Pass 1 of 2: Analyzing Frame Complexity'
       : progress.stage === 'pass_2'
-      ? 'Pass 2 of 2: Precision Bitrate Encoding'
-      : 'Encoding Video Stream';
+      ? 'Pass 2 of 2: Precision Bitrate Distribution'
+      : 'Active Stream Compression';
 
   return (
-    <div className="w-full glass-panel-elevated rounded-2xl p-6 border border-brand-blue/40 shadow-glow-blue relative overflow-hidden space-y-6">
-      {/* Background glow */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-blue via-brand-indigo to-brand-cyan" />
+    <div className="w-full studio-card-elevated rounded-2xl p-6 border border-prism-cyan/40 shadow-glow-cyan relative overflow-hidden space-y-6">
+      {/* Top glowing ambient beam */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-prism-cyan via-prism-electric to-prism-violet animate-pulse" />
 
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-brand-blue/20 border border-brand-blue/40 flex items-center justify-center text-brand-blue animate-spin">
-            <Loader2 className="w-5 h-5" />
+        <div className="flex items-center space-x-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-prism-cyan/15 border border-prism-cyan/40 flex items-center justify-center text-prism-cyan animate-spin shadow-glow-cyan">
+            <Loader2 className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white font-sans flex items-center space-x-2">
-              <span>Compressing Video</span>
-              <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-brand-blue/20 text-brand-blue border border-brand-blue/40 font-semibold">
+            <div className="flex items-center space-x-2.5">
+              <h3 className="text-base font-bold text-white tracking-tight">
+                Encoding in Progress
+              </h3>
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-mono font-bold bg-prism-cyan/20 text-prism-cyan border border-prism-cyan/40 shadow-[0_0_10px_rgba(0,210,255,0.3)]">
                 {progress.percent}%
               </span>
-            </h3>
+            </div>
             <p className="text-xs text-slate-400 font-mono mt-0.5">{stageLabel}</p>
           </div>
         </div>
@@ -52,21 +54,21 @@ export const EncodingProgress: React.FC<EncodingProgressProps> = ({
         <button
           onClick={onCancel}
           disabled={isCancelling}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-xs font-semibold text-rose-300 hover:text-rose-200 transition-colors disabled:opacity-50"
+          className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-prism-rose/15 hover:bg-prism-rose/25 border border-prism-rose/40 text-xs font-bold text-rose-300 hover:text-white transition-all disabled:opacity-40"
         >
-          <XCircle className="w-4 h-4 text-rose-400" />
-          <span>{isCancelling ? 'Cancelling...' : 'Abort Job'}</span>
+          <XCircle className="w-4 h-4 text-prism-rose" />
+          <span>{isCancelling ? 'Halting...' : 'Abort Job'}</span>
         </button>
       </div>
 
-      {/* Progress Bar */}
+      {/* Progress Track */}
       <div>
-        <div className="w-full bg-obsidian-900 rounded-full h-3.5 overflow-hidden p-0.5 border border-obsidian-700/80">
+        <div className="w-full bg-void-950 rounded-full h-3 p-0.5 border border-white/10 shadow-inner">
           <div
-            className="h-full bg-gradient-to-r from-brand-blue via-brand-indigo to-brand-cyan rounded-full transition-all duration-300 relative shadow-glow-blue"
+            className="h-full bg-gradient-to-r from-prism-cyan via-prism-electric to-prism-mint rounded-full transition-all duration-300 relative shadow-glow-cyan"
             style={{ width: `${Math.max(2, Math.min(100, progress.percent))}%` }}
           >
-            <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full" />
+            <div className="absolute inset-0 bg-white/25 rounded-full animate-pulse" />
           </div>
         </div>
         <div className="flex justify-between items-center text-[11px] font-mono text-slate-400 mt-2">
@@ -75,12 +77,12 @@ export const EncodingProgress: React.FC<EncodingProgressProps> = ({
         </div>
       </div>
 
-      {/* Live Telemetry Matrix */}
+      {/* Telemetry Matrix */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Speed Multiplier */}
-        <div className="bg-obsidian-900/80 rounded-xl p-3 border border-obsidian-700/50">
-          <span className="text-[11px] text-slate-400 flex items-center space-x-1">
-            <Gauge className="w-3.5 h-3.5 text-brand-blue" />
+        {/* Speed */}
+        <div className="bg-void-950/80 rounded-xl p-3.5 border border-white/[0.05]">
+          <span className="text-[11px] text-slate-400 flex items-center space-x-1.5 font-medium">
+            <Gauge className="w-3.5 h-3.5 text-prism-cyan" />
             <span>Speed Multiplier</span>
           </span>
           <p className="text-base font-bold text-white font-mono mt-1">
@@ -88,36 +90,36 @@ export const EncodingProgress: React.FC<EncodingProgressProps> = ({
           </p>
         </div>
 
-        {/* Encoding FPS */}
-        <div className="bg-obsidian-900/80 rounded-xl p-3 border border-obsidian-700/50">
-          <span className="text-[11px] text-slate-400 flex items-center space-x-1">
-            <Layers className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Processing FPS</span>
+        {/* FPS */}
+        <div className="bg-void-950/80 rounded-xl p-3.5 border border-white/[0.05]">
+          <span className="text-[11px] text-slate-400 flex items-center space-x-1.5 font-medium">
+            <Layers className="w-3.5 h-3.5 text-prism-mint" />
+            <span>Encoding FPS</span>
           </span>
-          <p className="text-base font-bold text-emerald-400 font-mono mt-1">
+          <p className="text-base font-bold text-prism-mint font-mono mt-1">
             {progress.fps} fps
           </p>
         </div>
 
-        {/* Time Remaining (ETA) */}
-        <div className="bg-obsidian-900/80 rounded-xl p-3 border border-obsidian-700/50">
-          <span className="text-[11px] text-slate-400 flex items-center space-x-1">
-            <Clock className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Est. Remaining (ETA)</span>
+        {/* ETA */}
+        <div className="bg-void-950/80 rounded-xl p-3.5 border border-white/[0.05]">
+          <span className="text-[11px] text-slate-400 flex items-center space-x-1.5 font-medium">
+            <Clock className="w-3.5 h-3.5 text-prism-electric" />
+            <span>Time Remaining</span>
           </span>
-          <p className="text-base font-bold text-cyan-300 font-mono mt-1">
+          <p className="text-base font-bold text-cyan-200 font-mono mt-1">
             {formatTime(progress.etaSeconds)}
           </p>
         </div>
 
-        {/* Current Size */}
-        <div className="bg-obsidian-900/80 rounded-xl p-3 border border-obsidian-700/50">
-          <span className="text-[11px] text-slate-400 flex items-center space-x-1">
-            <HardDrive className="w-3.5 h-3.5 text-brand-violet" />
+        {/* Size */}
+        <div className="bg-void-950/80 rounded-xl p-3.5 border border-white/[0.05]">
+          <span className="text-[11px] text-slate-400 flex items-center space-x-1.5 font-medium">
+            <HardDrive className="w-3.5 h-3.5 text-prism-violet" />
             <span>Current Size</span>
           </span>
           <p className="text-base font-bold text-white font-mono mt-1">
-            {progress.currentSizeFormatted || 'Calculating...'}
+            {progress.currentSizeFormatted || 'Measuring...'}
           </p>
         </div>
       </div>

@@ -38,18 +38,21 @@ export const MediaInspector: React.FC<MediaInspectorProps> = ({ metadata, onClea
   };
 
   return (
-    <div className="w-full glass-panel rounded-2xl p-5 border border-obsidian-700/80 shadow-lg relative overflow-hidden">
+    <div className="w-full studio-card rounded-2xl p-5 border border-white/[0.08] relative overflow-hidden">
+      {/* Top subtle highlight */}
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-prism-cyan/30 via-prism-electric/30 to-transparent pointer-events-none" />
+
       {/* Header bar */}
-      <div className="flex items-start justify-between gap-4 pb-4 border-b border-obsidian-700/60">
-        <div className="flex items-center space-x-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-brand-blue/15 border border-brand-blue/30 flex items-center justify-center text-brand-blue shrink-0">
+      <div className="flex items-start justify-between gap-4 pb-4 border-b border-white/[0.06]">
+        <div className="flex items-center space-x-3.5 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-prism-cyan/[0.1] border border-prism-cyan/30 flex items-center justify-center text-prism-cyan shrink-0 shadow-glow-cyan">
             <Film className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-white truncate max-w-sm sm:max-w-md font-sans">
+            <h3 className="text-sm font-bold text-white truncate max-w-sm sm:max-w-md font-sans">
               {metadata.fileName}
             </h3>
-            <p className="text-xs text-slate-400 font-mono mt-0.5 truncate">
+            <p className="text-[11px] text-slate-400 font-mono mt-0.5 truncate">
               {metadata.filePath}
             </p>
           </div>
@@ -57,10 +60,10 @@ export const MediaInspector: React.FC<MediaInspectorProps> = ({ metadata, onClea
 
         <button
           onClick={onClear}
-          className="shrink-0 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-obsidian-800 hover:bg-obsidian-700 border border-obsidian-600/60 text-xs text-slate-300 hover:text-white transition-colors"
+          className="shrink-0 flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-all shadow-glass-rim-subtle"
           title="Change source file"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <RefreshCw className="w-3.5 h-3.5 text-prism-cyan" />
           <span className="hidden sm:inline">Change File</span>
         </button>
       </div>
@@ -68,10 +71,10 @@ export const MediaInspector: React.FC<MediaInspectorProps> = ({ metadata, onClea
       {/* Grid of technical metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
         {/* File Size */}
-        <div className="bg-obsidian-850/80 rounded-xl p-3 border border-obsidian-700/50">
-          <div className="flex items-center space-x-1.5 text-xs text-slate-400">
-            <HardDrive className="w-3.5 h-3.5 text-brand-blue" />
-            <span>Original Size</span>
+        <div className="bg-void-900/90 rounded-xl p-3 border border-white/[0.05] shadow-glass-rim-subtle">
+          <div className="flex items-center space-x-1.5 text-[11px] text-slate-400">
+            <HardDrive className="w-3.5 h-3.5 text-prism-cyan" />
+            <span>Source Size</span>
           </div>
           <p className="text-base font-bold text-white font-mono mt-1">
             {formatBytes(metadata.fileSizeBytes)}
@@ -79,9 +82,9 @@ export const MediaInspector: React.FC<MediaInspectorProps> = ({ metadata, onClea
         </div>
 
         {/* Duration */}
-        <div className="bg-obsidian-850/80 rounded-xl p-3 border border-obsidian-700/50">
-          <div className="flex items-center space-x-1.5 text-xs text-slate-400">
-            <Clock className="w-3.5 h-3.5 text-brand-indigo" />
+        <div className="bg-void-900/90 rounded-xl p-3 border border-white/[0.05] shadow-glass-rim-subtle">
+          <div className="flex items-center space-x-1.5 text-[11px] text-slate-400">
+            <Clock className="w-3.5 h-3.5 text-prism-electric" />
             <span>Duration</span>
           </div>
           <p className="text-base font-bold text-white font-mono mt-1">
@@ -89,10 +92,10 @@ export const MediaInspector: React.FC<MediaInspectorProps> = ({ metadata, onClea
           </p>
         </div>
 
-        {/* Resolution & FPS */}
-        <div className="bg-obsidian-850/80 rounded-xl p-3 border border-obsidian-700/50">
-          <div className="flex items-center space-x-1.5 text-xs text-slate-400">
-            <Maximize className="w-3.5 h-3.5 text-brand-violet" />
+        {/* Resolution & Tag */}
+        <div className="bg-void-900/90 rounded-xl p-3 border border-white/[0.05] shadow-glass-rim-subtle">
+          <div className="flex items-center space-x-1.5 text-[11px] text-slate-400">
+            <Maximize className="w-3.5 h-3.5 text-prism-violet" />
             <span>Resolution</span>
           </div>
           <div className="flex items-baseline space-x-1.5 mt-1">
@@ -100,7 +103,7 @@ export const MediaInspector: React.FC<MediaInspectorProps> = ({ metadata, onClea
               {video ? `${video.width}x${video.height}` : 'N/A'}
             </p>
             {video && (
-              <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-medium bg-brand-violet/20 text-brand-violet border border-brand-violet/30">
+              <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-semibold bg-prism-violet/20 text-prism-violet border border-prism-violet/30">
                 {getResolutionTag(video.height)}
               </span>
             )}
@@ -108,10 +111,10 @@ export const MediaInspector: React.FC<MediaInspectorProps> = ({ metadata, onClea
         </div>
 
         {/* Video Codec */}
-        <div className="bg-obsidian-850/80 rounded-xl p-3 border border-obsidian-700/50">
-          <div className="flex items-center space-x-1.5 text-xs text-slate-400">
-            <Layers className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Codec & FPS</span>
+        <div className="bg-void-900/90 rounded-xl p-3 border border-white/[0.05] shadow-glass-rim-subtle">
+          <div className="flex items-center space-x-1.5 text-[11px] text-slate-400">
+            <Layers className="w-3.5 h-3.5 text-prism-mint" />
+            <span>Codec & Rate</span>
           </div>
           <p className="text-base font-bold text-white font-mono mt-1 uppercase">
             {video ? `${video.codecName} @ ${video.fps}fps` : 'Unknown'}
@@ -121,15 +124,15 @@ export const MediaInspector: React.FC<MediaInspectorProps> = ({ metadata, onClea
 
       {/* Audio strip */}
       {audio && (
-        <div className="mt-3 bg-obsidian-850/50 rounded-xl px-3.5 py-2 border border-obsidian-700/30 flex items-center justify-between text-xs text-slate-400">
+        <div className="mt-3 bg-void-900/50 rounded-xl px-3.5 py-2 border border-white/[0.04] flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center space-x-2">
-            <Volume2 className="w-3.5 h-3.5 text-brand-cyan" />
+            <Volume2 className="w-3.5 h-3.5 text-prism-cyan" />
             <span>Audio Stream:</span>
-            <span className="text-slate-200 font-mono font-medium uppercase">
+            <span className="text-slate-200 font-mono font-medium uppercase text-[11px]">
               {audio.codecName} ({audio.channelLayout || `${audio.channels} ch`})
             </span>
           </div>
-          <span className="font-mono text-slate-400">{audio.sampleRate} Hz</span>
+          <span className="font-mono text-slate-400 text-[11px]">{audio.sampleRate} Hz</span>
         </div>
       )}
     </div>

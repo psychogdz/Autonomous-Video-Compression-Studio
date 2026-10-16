@@ -28,6 +28,8 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
   const originalUrl = `/api/stream?path=${encodeURIComponent(originalPath)}`;
   const compressedUrl = `/api/stream?path=${encodeURIComponent(compressedPath)}`;
 
+  const isGifOutput = compressedPath.toLowerCase().endsWith('.gif');
+
   // Synchronize playback between original and compressed videos
   const togglePlay = () => {
     if (!originalVideoRef.current || !compressedVideoRef.current) return;
@@ -100,57 +102,57 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-      <div className="w-full max-w-5xl bg-obsidian-900 border border-obsidian-700/80 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-void-950/85 backdrop-blur-xl animate-fade-in">
+      <div className="w-full max-w-5xl bg-void-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="p-4 border-b border-obsidian-700/70 flex items-center justify-between">
+        <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <h3 className="text-base font-bold text-white font-sans">
+            <h3 className="text-base font-bold text-white tracking-tight">
               Interactive Before / After Visual Comparison
             </h3>
-            <span className="text-xs px-2.5 py-0.5 rounded-full font-mono bg-brand-blue/15 text-brand-blue border border-brand-blue/30 font-semibold">
+            <span className="text-[11px] px-2.5 py-0.5 rounded font-mono bg-prism-cyan/15 text-prism-cyan border border-prism-cyan/30 font-semibold">
               Split Slider
             </span>
           </div>
 
           <div className="flex items-center space-x-3">
             {/* Quality Score Trigger */}
-            {!qualityScore ? (
+            {!qualityScore && !isGifOutput ? (
               <button
                 onClick={handleCalculateQuality}
                 disabled={isCalculatingQuality}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-obsidian-800 hover:bg-obsidian-700 border border-obsidian-600/70 text-xs font-semibold text-slate-200 transition-colors disabled:opacity-50"
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-void-850 hover:bg-void-800 border border-white/10 text-xs font-semibold text-slate-200 transition-all disabled:opacity-50 shadow-glass-rim-subtle"
               >
                 {isCalculatingQuality ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-blue" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-prism-cyan" />
                     <span>Measuring SSIM...</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <Sparkles className="w-3.5 h-3.5 text-prism-amber" />
                     <span>Measure SSIM / PSNR</span>
                   </>
                 )}
               </button>
-            ) : (
+            ) : qualityScore ? (
               <div className="flex items-center space-x-2 text-xs font-mono">
                 {qualityScore.ssim && (
-                  <span className="px-2 py-1 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  <span className="px-2.5 py-1 rounded-lg bg-prism-mint/15 text-prism-mint border border-prism-mint/30 font-bold">
                     SSIM: {qualityScore.ssim}
                   </span>
                 )}
                 {qualityScore.psnr && (
-                  <span className="px-2 py-1 rounded bg-brand-blue/15 text-brand-blue border border-brand-blue/30">
+                  <span className="px-2.5 py-1 rounded-lg bg-prism-cyan/15 text-prism-cyan border border-prism-cyan/30 font-bold">
                     PSNR: {qualityScore.psnr} dB
                   </span>
                 )}
               </div>
-            )}
+            ) : null}
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-obsidian-800 hover:bg-obsidian-700 text-slate-400 hover:text-white transition-colors"
+              className="p-1.5 rounded-xl bg-void-850 hover:bg-void-800 text-slate-400 hover:text-white transition-colors border border-white/10"
             >
               <X className="w-5 h-5" />
             </button>
@@ -163,14 +165,22 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
           onMouseMove={handleMouseMove}
           className="relative flex-1 min-h-[380px] sm:min-h-[460px] bg-black select-none overflow-hidden cursor-ew-resize"
         >
-          {/* Compressed Video (Full Canvas Background) */}
-          <video
-            ref={compressedVideoRef}
-            src={compressedUrl}
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-            muted
-            playsInline
-          />
+          {/* Compressed Media (Full Canvas Background) */}
+          {isGifOutput ? (
+            <img
+              src={compressedUrl}
+              alt="Compressed Preview"
+              className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+            />
+          ) : (
+            <video
+              ref={compressedVideoRef}
+              src={compressedUrl}
+              className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+              muted
+              playsInline
+            />
+          )}
 
           {/* Original Video (Clipped by Slider Position) */}
           <div
@@ -197,25 +207,25 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
             style={{ left: `${sliderPosition}%` }}
             onMouseDown={handleMouseDown}
           >
-            <div className="w-7 h-7 rounded-full bg-brand-blue border-2 border-white shadow-lg flex items-center justify-center text-white text-[10px] font-bold">
+            <div className="w-8 h-8 rounded-full bg-prism-cyan border-2 border-white shadow-[0_0_15px_#00D2FF] flex items-center justify-center text-void-950 text-xs font-bold">
               ⬌
             </div>
           </div>
 
           {/* Labels */}
-          <div className="absolute top-4 left-4 z-10 px-2.5 py-1 rounded bg-black/60 backdrop-blur-md border border-white/20 text-xs font-mono font-bold text-white">
-            ORIGINAL (SOURCE)
+          <div className="absolute top-4 left-4 z-10 px-3 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-white/20 text-xs font-mono font-bold text-white shadow-lg">
+            ORIGINAL SOURCE
           </div>
-          <div className="absolute top-4 right-4 z-10 px-2.5 py-1 rounded bg-brand-blue/80 backdrop-blur-md border border-white/20 text-xs font-mono font-bold text-white">
-            COMPRESSED
+          <div className="absolute top-4 right-4 z-10 px-3 py-1 rounded-lg bg-prism-cyan/85 backdrop-blur-md border border-white/20 text-xs font-mono font-bold text-void-950 shadow-lg">
+            COMPRESSED OUTPUT
           </div>
         </div>
 
         {/* Player Controls Bar */}
-        <div className="p-4 bg-obsidian-950 border-t border-obsidian-700/70 flex items-center space-x-4">
+        <div className="p-4 bg-void-950 border-t border-white/[0.08] flex items-center space-x-4">
           <button
             onClick={togglePlay}
-            className="w-10 h-10 rounded-xl bg-brand-blue hover:bg-blue-600 flex items-center justify-center text-white shrink-0 transition-colors shadow-glow-blue"
+            className="w-10 h-10 rounded-xl bg-gradient-to-r from-prism-cyan to-prism-electric hover:opacity-95 flex items-center justify-center text-void-950 shrink-0 transition-all shadow-glow-cyan font-bold"
           >
             {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
           </button>
@@ -229,9 +239,9 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
               step="0.05"
               value={currentTime}
               onChange={handleSeek}
-              className="w-full h-2 rounded-lg cursor-pointer accent-brand-blue"
+              className="w-full"
             />
-            <span className="text-xs font-mono text-slate-300 shrink-0">
+            <span className="text-xs font-mono text-slate-300 shrink-0 font-medium">
               {currentTime.toFixed(1)}s / {duration.toFixed(1)}s
             </span>
           </div>

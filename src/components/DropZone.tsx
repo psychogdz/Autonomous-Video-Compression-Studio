@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, Film, FileText, ArrowRight, Loader2 } from 'lucide-react';
+import { UploadCloud, Film, FileText, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 
 interface DropZoneProps {
   onFileSelected: (file: File) => void;
@@ -49,16 +49,16 @@ export const DropZone: React.FC<DropZoneProps> = ({
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-3">
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !isAnalyzing && fileInputRef.current?.click()}
-        className={`relative border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden ${
+        className={`group relative rounded-2xl p-8 sm:p-12 text-center transition-all duration-300 cursor-pointer flex flex-col items-center justify-center overflow-hidden border ${
           isDragOver
-            ? 'border-brand-blue bg-brand-blue/10 scale-[1.01]'
-            : 'border-obsidian-700/80 bg-obsidian-900/60 hover:border-obsidian-600 hover:bg-obsidian-900/90'
+            ? 'border-prism-cyan bg-prism-cyan/[0.08] shadow-glow-cyan scale-[1.01]'
+            : 'border-white/[0.09] bg-gradient-to-b from-void-900/90 to-void-950/90 hover:border-prism-cyan/40 hover:bg-void-900 shadow-glass-rim'
         } ${isAnalyzing ? 'pointer-events-none opacity-80' : ''}`}
       >
         <input
@@ -69,67 +69,75 @@ export const DropZone: React.FC<DropZoneProps> = ({
           onChange={handleFileInputChange}
         />
 
-        {/* Glow backdrop on drag */}
-        {isDragOver && (
-          <div className="absolute inset-0 bg-gradient-to-r from-brand-blue/15 to-brand-indigo/15 pointer-events-none" />
-        )}
+        {/* Ambient background bloom */}
+        <div className="absolute inset-0 bg-gradient-radial from-prism-cyan/10 via-prism-electric/[0.03] to-transparent pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity" />
 
         {isAnalyzing ? (
-          <div className="flex flex-col items-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-brand-blue/15 border border-brand-blue/30 flex items-center justify-center text-brand-blue animate-spin">
-              <Loader2 className="w-8 h-8" />
+          <div className="relative z-10 flex flex-col items-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-prism-cyan/10 border border-prism-cyan/40 flex items-center justify-center text-prism-cyan shadow-glow-cyan">
+              <Loader2 className="w-8 h-8 animate-spin text-prism-cyan" />
             </div>
             <div>
-              <p className="text-base font-semibold text-white">Analyzing Video Streams...</p>
-              <p className="text-xs text-slate-400 mt-1 font-mono">Probing codecs, bitrates, audio tracks, and frame rates</p>
+              <p className="text-base font-bold text-white tracking-tight">Analyzing Media Streams...</p>
+              <p className="text-xs text-slate-400 mt-1 font-mono">Deep probing codecs, bitrates, audio channels, and framerate</p>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-obsidian-800/90 border border-obsidian-700 flex items-center justify-center text-brand-blue group-hover:scale-105 transition-transform shadow-lg">
-              <UploadCloud className="w-8 h-8 text-brand-blue" />
+          <div className="relative z-10 flex flex-col items-center space-y-4 max-w-md">
+            {/* Center aperture glyph */}
+            <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-void-850 border border-white/10 group-hover:border-prism-cyan/50 group-hover:shadow-glow-cyan transition-all duration-300">
+              <UploadCloud className="w-8 h-8 text-prism-cyan transition-transform duration-300 group-hover:scale-110" />
             </div>
+
             <div>
-              <p className="text-base sm:text-lg font-semibold text-white">
-                Drag and drop your video file here
+              <p className="text-base sm:text-lg font-bold text-white tracking-tight">
+                Drag and drop your video or animated GIF
               </p>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                or <span className="text-brand-blue font-medium hover:underline">browse files</span> from your computer
+                or <span className="text-prism-cyan font-semibold hover:underline">browse files</span> from your workstation
               </p>
             </div>
-            <div className="flex items-center space-x-2 text-[11px] text-slate-400 bg-obsidian-850 px-3 py-1.5 rounded-full border border-obsidian-700/50">
-              <Film className="w-3.5 h-3.5 text-slate-400" />
-              <span>Supports MP4, MOV, MKV, WebM, AVI, GIF, TS, ProRes</span>
+
+            {/* Supported formats badge */}
+            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+              {['MP4', 'MOV', 'MKV', 'WebM', 'AVI', 'GIF', 'ProRes'].map((fmt) => (
+                <span
+                  key={fmt}
+                  className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-white/[0.04] text-slate-300 border border-white/[0.06]"
+                >
+                  {fmt}
+                </span>
+              ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* Alternative direct file path input */}
-      <div className="mt-3 flex justify-between items-center text-xs text-slate-400">
+      {/* Local path input switch */}
+      <div className="flex justify-between items-center px-1">
         <button
           type="button"
           onClick={() => setShowPathInput(!showPathInput)}
-          className="text-slate-400 hover:text-brand-blue transition-colors flex items-center space-x-1"
+          className="text-xs text-slate-400 hover:text-prism-cyan transition-colors flex items-center space-x-1.5 font-medium"
         >
           <FileText className="w-3.5 h-3.5" />
-          <span>{showPathInput ? 'Hide local path input' : 'Enter local file path directly'}</span>
+          <span>{showPathInput ? 'Hide local path input' : 'Or load directly from host file path'}</span>
         </button>
       </div>
 
       {showPathInput && (
-        <form onSubmit={handleDirectPathSubmit} className="mt-2.5 flex items-center space-x-2">
+        <form onSubmit={handleDirectPathSubmit} className="flex items-center space-x-2 pt-1">
           <input
             type="text"
             value={directPathInput}
             onChange={(e) => setDirectPathInput(e.target.value)}
             placeholder="e.g. C:\Videos\raw_capture.mp4"
-            className="flex-1 bg-obsidian-900 border border-obsidian-700 rounded-lg px-3.5 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-brand-blue font-mono"
+            className="flex-1 bg-void-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-prism-cyan/60 font-mono shadow-glass-rim transition-colors"
           />
           <button
             type="submit"
             disabled={!directPathInput.trim() || isAnalyzing}
-            className="px-3.5 py-2 rounded-lg bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-semibold flex items-center space-x-1.5 transition-colors"
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-prism-cyan to-prism-electric text-void-950 font-bold text-xs hover:opacity-95 disabled:opacity-40 transition-all flex items-center space-x-1.5 shadow-glow-cyan"
           >
             <span>Analyze</span>
             <ArrowRight className="w-3.5 h-3.5" />

@@ -22,70 +22,74 @@ export const Header: React.FC<HeaderProps> = ({
     ? 'Intel QuickSync'
     : hardware?.hasAmd
     ? 'AMD AMF'
-    : 'CPU Software';
+    : 'Multi-Core CPU';
 
   return (
-    <header className="border-b border-obsidian-700/60 bg-obsidian-900/80 backdrop-blur-md sticky top-0 z-40 px-6 py-3.5">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-void-950/80 backdrop-blur-xl">
+      {/* Top subtle anamorphic glow beam */}
+      <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-prism-cyan/50 to-transparent pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand identity */}
         <div className="flex items-center space-x-3.5">
-          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-blue via-brand-indigo to-brand-violet shadow-glow-blue">
-            <Video className="w-5 h-5 text-white" />
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-obsidian-900" />
+          <div className="relative group flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-prism-cyan/20 via-prism-electric/30 to-prism-violet/30 border border-prism-cyan/40 shadow-glow-cyan">
+            <Video className="w-5 h-5 text-prism-cyan transition-transform group-hover:scale-110" />
+            <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-prism-mint rounded-full border-2 border-void-950 shadow-[0_0_8px_#00F5A0]" />
           </div>
+
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-xl font-bold tracking-tight text-white font-sans">
-                Lumina<span className="text-brand-blue">Press</span>
+              <span className="text-lg font-bold tracking-tight text-white font-sans">
+                Lumina<span className="bg-gradient-to-r from-prism-cyan to-prism-electric bg-clip-text text-transparent">Press</span>
               </span>
-              <span className="text-xs px-2 py-0.5 rounded-full font-mono font-medium bg-brand-blue/15 text-brand-blue border border-brand-blue/30">
-                Studio v1.0
+              <span className="text-[10px] tracking-wider uppercase px-2 py-0.5 rounded font-mono font-semibold bg-white/[0.06] text-slate-300 border border-white/10">
+                Studio
               </span>
             </div>
-            <p className="text-xs text-slate-400 font-normal">
-              Maximum Compression, Uncompromised Clarity
+            <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
+              Intelligent Autonomous Video Compression Engine
             </p>
           </div>
         </div>
 
-        {/* Status Indicators & Controls */}
-        <div className="flex items-center space-x-3">
-          {/* Hardware acceleration pill */}
-          <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-obsidian-800/80 border border-obsidian-700/70 text-xs">
+        {/* Console Controls & Indicators */}
+        <div className="flex items-center space-x-2.5 sm:space-x-3">
+          {/* Hardware acceleration indicator */}
+          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-void-900/90 border border-white/[0.08] text-xs shadow-glass-rim-subtle">
             {hasGpu ? (
               <>
-                <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                <span className="text-slate-300 font-medium">GPU Accel:</span>
-                <span className="text-emerald-400 font-mono font-semibold">{gpuName}</span>
+                <Zap className="w-3.5 h-3.5 text-prism-amber animate-pulse" />
+                <span className="text-slate-400 hidden md:inline">Hardware:</span>
+                <span className="text-prism-mint font-mono font-semibold text-[11px]">{gpuName}</span>
               </>
             ) : (
               <>
-                <Cpu className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-slate-400 font-medium">Engine:</span>
-                <span className="text-slate-200 font-mono">CPU (Multi-thread)</span>
+                <Cpu className="w-3.5 h-3.5 text-prism-cyan" />
+                <span className="text-slate-400 hidden md:inline">Hardware:</span>
+                <span className="text-slate-200 font-mono text-[11px]">CPU Engine</span>
               </>
             )}
           </div>
 
-          {/* Engine version pill */}
-          <div className="hidden md:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-obsidian-800/50 border border-obsidian-700/50 text-xs text-slate-400">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          {/* Version pill */}
+          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-void-900/50 border border-white/[0.05] text-[11px] text-slate-400">
+            <ShieldCheck className="w-3.5 h-3.5 text-prism-cyan" />
             <span>FFmpeg:</span>
-            <span className="font-mono text-slate-300">{ffmpegVersion ? `v${ffmpegVersion}` : '9.0.2 Full'}</span>
+            <span className="font-mono text-slate-300">{ffmpegVersion ? `v${ffmpegVersion}` : '9.0.2'}</span>
           </div>
 
-          {/* Batch Queue Button */}
+          {/* Batch Queue Drawer Trigger */}
           <button
             onClick={onOpenQueue}
-            className="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg bg-obsidian-800 hover:bg-obsidian-700 border border-obsidian-600/70 text-xs text-slate-200 transition-colors font-medium relative"
+            className="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg bg-void-900 hover:bg-void-800 border border-white/10 hover:border-prism-cyan/40 text-xs font-semibold text-slate-200 transition-all shadow-glass-rim"
           >
-            <Layers className="w-4 h-4 text-brand-blue" />
-            <span>Batch Queue</span>
-            {queueCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-brand-blue text-white">
+            <Layers className="w-3.5 h-3.5 text-prism-cyan" />
+            <span className="hidden sm:inline">Batch Queue</span>
+            {queueCount > 0 ? (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-prism-cyan text-void-950 shadow-[0_0_10px_#00D2FF]">
                 {queueCount}
               </span>
-            )}
+            ) : null}
           </button>
         </div>
       </div>
