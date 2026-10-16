@@ -475,6 +475,8 @@ export const App: React.FC = () => {
         <VideoCompareModal
           originalPath={result.sourceFilePath}
           compressedPath={result.outputFilePath}
+          result={result}
+          metadata={metadata}
           onClose={() => setIsCompareOpen(false)}
         />
       )}
