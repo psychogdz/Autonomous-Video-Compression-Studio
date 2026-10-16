@@ -19,6 +19,8 @@ export interface ActiveJob {
   status: 'running' | 'completed' | 'failed' | 'cancelled';
   outputFilePath: string;
   tempPassLogPrefix?: string;
+  result?: CompressionOutcome;
+  error?: string;
   listeners: Array<(progress: EncodingProgress) => void>;
   completionListeners: Array<(outcome: CompressionOutcome) => void>;
   errorListeners: Array<(err: Error) => void>;
@@ -66,19 +68,7 @@ export async function startCompressionJob(
   config: CompressionJobConfig,
   onProgress?: (p: EncodingProgress) => void
 ): Promise<CompressionOutcome> {
-  const { ffmpegPath } = await locateBinaries();
-  const probe = await probeMedia(config.sourceFilePath);
-  const hardware = await detectHardwareCapabilities();
-  const availableEncoders = hardware.encoders.filter(e => e.available).map(e => e.id);
-  const decision = makeCompressionDecision(probe, config, availableEncoders);
-
   const outputFilePath = config.outputFilePath || generateSafeOutputPath(config.sourceFilePath);
-
-  // Ensure output directory exists
-  const outDir = path.dirname(outputFilePath);
-  if (!fs.existsSync(outDir)) {
-    fs.mkdirSync(outDir, { recursive: true });
-  }
 
   const job: ActiveJob = {
     jobId,
@@ -90,6 +80,18 @@ export async function startCompressionJob(
     errorListeners: [],
   };
   activeJobs.set(jobId, job);
+
+  const { ffmpegPath } = await locateBinaries();
+  const probe = await probeMedia(config.sourceFilePath);
+  const hardware = await detectHardwareCapabilities();
+  const availableEncoders = hardware.encoders.filter(e => e.available).map(e => e.id);
+  const decision = makeCompressionDecision(probe, config, availableEncoders);
+
+  // Ensure output directory exists
+  const outDir = path.dirname(outputFilePath);
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
+  }
 
   const startTime = Date.now();
   let totalFramesEncoded = 0;
@@ -190,10 +192,12 @@ export async function startCompressionJob(
       success: true,
     };
 
+    job.result = outcome;
     job.status = 'completed';
     job.completionListeners.forEach(fn => fn(outcome));
     return outcome;
   } catch (err: any) {
+    job.error = err.message;
     job.status = job.status === 'cancelled' ? 'cancelled' : 'failed';
     // Cleanup incomplete output file on failure or cancel
     if (fs.existsSync(outputFilePath)) {

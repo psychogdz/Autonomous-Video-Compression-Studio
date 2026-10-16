@@ -19,7 +19,7 @@ import { queueManager } from './engine/queueManager.js';
 import { CompressionJobConfig, EncodingProgress } from '../../shared/types.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.SERVER_PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
@@ -152,6 +152,16 @@ app.get('/api/compress/:jobId/progress', (req: Request, res: Response) => {
     return res.end();
   }
 
+  if (job.status === 'completed' && job.result) {
+    res.write(`event: complete\ndata: ${JSON.stringify(job.result)}\n\n`);
+    return res.end();
+  }
+
+  if (job.status === 'failed') {
+    res.write(`event: error\ndata: ${JSON.stringify({ message: job.error || 'Job failed' })}\n\n`);
+    return res.end();
+  }
+
   // Send initial connected ping
   res.write(`event: connected\ndata: ${JSON.stringify({ jobId, status: job.status })}\n\n`);
 
@@ -266,6 +276,58 @@ app.get('/api/stream', (req: Request, res: Response) => {
 // 12. Batch Queue Endpoints
 app.get('/api/queue', (_req: Request, res: Response) => {
   res.json(queueManager.getQueue());
+});
+
+// 13. Export Compression Summary Report
+app.post('/api/export-report', (req: Request, res: Response) => {
+  const { outcome, format } = req.body;
+  if (!outcome) {
+    return res.status(400).json({ error: 'outcome is required' });
+  }
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
+  };
+
+  if (format === 'json') {
+    return res.json({
+      application: 'LuminaPress Video Studio',
+      timestamp: new Date().toISOString(),
+      report: outcome,
+    });
+  }
+
+  const markdownReport = `# LuminaPress Video Studio — Compression Audit Report
+Generated: ${new Date().toLocaleString()}
+
+## File Summary
+- **Source File:** \`${outcome.sourceFilePath}\`
+- **Output File:** \`${outcome.outputFilePath}\`
+- **Original Size:** ${formatBytes(outcome.originalSizeBytes)} (${outcome.originalSizeBytes} bytes)
+- **Compressed Size:** ${formatBytes(outcome.compressedSizeBytes)} (${outcome.compressedSizeBytes} bytes)
+- **Space Saved:** ${formatBytes(outcome.savedBytes)} (**-${outcome.savedPercent}%**)
+
+## Encoding Telemetry
+- **Video Codec:** ${outcome.actualVideoCodec.toUpperCase()}
+- **Duration:** ${outcome.durationSeconds.toFixed(1)}s
+- **Processing Time:** ${outcome.processingTimeSeconds.toFixed(1)}s
+- **Average FPS:** ${outcome.averageFps} fps
+- **Average Encoding Speed:** ${outcome.averageSpeed}
+
+${outcome.quality ? `## Quality Verification
+- **SSIM (Structural Similarity):** ${outcome.quality.ssim ?? 'N/A'}
+- **PSNR (Peak Signal-to-Noise Ratio):** ${outcome.quality.psnr ? `${outcome.quality.psnr} dB` : 'N/A'}
+` : ''}
+---
+*Report generated automatically by LuminaPress Video Studio.*
+`;
+
+  res.setHeader('Content-Type', 'text/markdown');
+  res.setHeader('Content-Disposition', 'attachment; filename="compression_report.md"');
+  res.send(markdownReport);
 });
 
 app.post('/api/queue/add', async (req: Request, res: Response) => {

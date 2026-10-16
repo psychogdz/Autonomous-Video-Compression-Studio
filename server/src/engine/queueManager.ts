@@ -143,7 +143,7 @@ class QueueManager {
       nextJob.result = outcome;
       nextJob.completedAt = Date.now();
     } catch (err: any) {
-      if (nextJob.status !== 'cancelled') {
+      if ((nextJob.status as string) !== 'cancelled') {
         nextJob.status = 'failed';
         nextJob.error = err.message || 'Compression failed';
       }
