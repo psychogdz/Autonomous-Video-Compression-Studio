@@ -3,11 +3,18 @@ import {
   X,
   Play,
   Pause,
-  RotateCcw,
   Sparkles,
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Move,
+  RotateCcw,
+  Info,
+  CheckCircle2,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react';
 import { QualityScore, CompressionOutcome, MediaProbeResult } from '../../shared/types';
 
@@ -26,19 +33,29 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
   metadata,
   onClose,
 }) => {
-  const [sliderPosition, setSliderPosition] = useState(50); // percentage 0 - 100 in video coordinates
+  const [sliderPosition, setSliderPosition] = useState(50); // percentage 0 - 100
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [zoomLevel, setZoomLevel] = useState<1 | 2 | 4>(1);
 
+  // Zoom & Pan state
+  const [zoomLevel, setZoomLevel] = useState<1 | 2 | 4>(1);
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Quality metrics state
   const [qualityScore, setQualityScore] = useState<QualityScore | null>(null);
   const [isCalculatingQuality, setIsCalculatingQuality] = useState(false);
+  const [showQualityDetails, setShowQualityDetails] = useState(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const originalVideoRef = useRef<HTMLVideoElement>(null);
   const compressedVideoRef = useRef<HTMLVideoElement>(null);
-  const isDraggingRef = useRef(false);
+
+  // Dragging state refs
+  const isDraggingSeamRef = useRef(false);
+  const isPanningRef = useRef(false);
+  const startMouseRef = useRef({ x: 0, y: 0 });
+  const startPanRef = useRef({ x: 0, y: 0 });
 
   const originalUrl = `/api/stream?path=${encodeURIComponent(originalPath)}`;
   const compressedUrl = `/api/stream?path=${encodeURIComponent(compressedPath)}`;
@@ -49,6 +66,29 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
     const units = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
+  };
+
+  // Reset pan when zoom changes to 1x
+  const handleZoomChange = (newZoom: 1 | 2 | 4) => {
+    setZoomLevel(newZoom);
+    if (newZoom === 1) {
+      setPanOffset({ x: 0, y: 0 });
+    }
+  };
+
+  const handleResetPan = () => {
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  const handleStepPan = (dx: number, dy: number) => {
+    setPanOffset((prev) => {
+      const maxX = 180 * (zoomLevel - 1);
+      const maxY = 120 * (zoomLevel - 1);
+      return {
+        x: Math.max(-maxX, Math.min(maxX, prev.x + dx)),
+        y: Math.max(-maxY, Math.min(maxY, prev.y + dy)),
+      };
+    });
   };
 
   // Synchronize playback between original and compressed videos
@@ -103,27 +143,52 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
     }
   };
 
-  // Draggable Split Divider locked directly to zoom coordinate space
+  // Seam coordinate calculation locked directly to video zoom space
   const updateSliderFromClientX = useCallback((clientX: number) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const W = rect.width;
-    // Calculate raw mouse displacement from center of container
     const rawOffsetFromCenter = (clientX - rect.left) - (W / 2);
-    // When zoomed, divide displacement by zoom level so divider handle stays locked 1:1 with mouse cursor
-    const unscaledOffset = rawOffsetFromCenter / zoomLevel;
+    // Counter-adjust for zoom and panOffset so seam tracks under mouse
+    const unscaledOffset = (rawOffsetFromCenter / zoomLevel) - panOffset.x;
     const percent = 50 + (unscaledOffset / W) * 100;
     setSliderPosition(Math.max(2, Math.min(98, percent)));
-  }, [zoomLevel]);
+  }, [zoomLevel, panOffset.x]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    isDraggingRef.current = true;
-    updateSliderFromClientX(e.clientX);
+    const target = e.target as HTMLElement;
+    const isSeam = target.closest('.seam-handle') || target.classList.contains('seam-handle');
+
+    if (isSeam) {
+      // Dragging the comparison divider
+      isDraggingSeamRef.current = true;
+      updateSliderFromClientX(e.clientX);
+    } else if (zoomLevel > 1) {
+      // Panning the zoomed canvas
+      isPanningRef.current = true;
+      startMouseRef.current = { x: e.clientX, y: e.clientY };
+      startPanRef.current = { ...panOffset };
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current) return;
-    updateSliderFromClientX(e.clientX);
+    if (isDraggingSeamRef.current) {
+      updateSliderFromClientX(e.clientX);
+    } else if (isPanningRef.current && zoomLevel > 1) {
+      const dx = (e.clientX - startMouseRef.current.x) / zoomLevel;
+      const dy = (e.clientY - startMouseRef.current.y) / zoomLevel;
+      const maxX = 180 * (zoomLevel - 1);
+      const maxY = 120 * (zoomLevel - 1);
+      setPanOffset({
+        x: Math.max(-maxX, Math.min(maxX, startPanRef.current.x + dx)),
+        y: Math.max(-maxY, Math.min(maxY, startPanRef.current.y + dy)),
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDraggingSeamRef.current = false;
+    isPanningRef.current = false;
   };
 
   // Compute SSIM and PSNR via FFmpeg
@@ -137,6 +202,7 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
       });
       const data = await res.json();
       setQualityScore(data);
+      setShowQualityDetails(true);
     } catch {
       // Ignore
     } finally {
@@ -145,10 +211,27 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
   };
 
   useEffect(() => {
-    const onUp = () => { isDraggingRef.current = false; };
+    const onUp = () => {
+      isDraggingSeamRef.current = false;
+      isPanningRef.current = false;
+    };
     window.addEventListener('mouseup', onUp);
     return () => window.removeEventListener('mouseup', onUp);
   }, []);
+
+  const getQualityVerdict = (ssim?: number, psnr?: number) => {
+    if (!ssim) return 'Measured High Quality';
+    if (ssim >= 0.985 && (psnr || 0) >= 42) {
+      return 'Studio Master (غیرقابل تشخیص از فایل اصلی)';
+    }
+    if (ssim >= 0.96) {
+      return 'Broadcast Fidelity (کیفیت استاندارد پخش استودیویی)';
+    }
+    if (ssim >= 0.92) {
+      return 'High Efficiency (کیفیت بسیار خوب با فشردگی بالا)';
+    }
+    return 'Noticeable Compression (فشرده‌سازی با افت جزئی جزئیات)';
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-void-950/90 backdrop-blur-2xl animate-fade-in">
@@ -171,7 +254,7 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
               {([1, 2, 4] as const).map((z) => (
                 <button
                   key={z}
-                  onClick={() => setZoomLevel(z)}
+                  onClick={() => handleZoomChange(z)}
                   className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
                     zoomLevel === z
                       ? 'bg-prism-cyan text-void-950 shadow-[0_0_8px_#00D2FF]'
@@ -184,7 +267,49 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
               ))}
             </div>
 
-            {/* Quality Score Trigger / Readout */}
+            {/* Pan Controls (When Zoom > 1) */}
+            {zoomLevel > 1 && (
+              <div className="flex items-center space-x-1 p-0.5 rounded-xl bg-void-900 border border-white/10 text-xs">
+                <span className="text-[10px] text-slate-400 pl-2 pr-1">Pan:</span>
+                <button
+                  onClick={() => handleStepPan(30, 0)}
+                  className="p-1 rounded hover:bg-void-800 text-slate-300 hover:text-white"
+                  title="Pan Left"
+                >
+                  <ArrowLeft className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => handleStepPan(-30, 0)}
+                  className="p-1 rounded hover:bg-void-800 text-slate-300 hover:text-white"
+                  title="Pan Right"
+                >
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => handleStepPan(0, 30)}
+                  className="p-1 rounded hover:bg-void-800 text-slate-300 hover:text-white"
+                  title="Pan Up"
+                >
+                  <ArrowUp className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => handleStepPan(0, -30)}
+                  className="p-1 rounded hover:bg-void-800 text-slate-300 hover:text-white"
+                  title="Pan Down"
+                >
+                  <ArrowDown className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={handleResetPan}
+                  className="px-2 py-0.5 text-[10px] font-mono rounded bg-white/[0.06] hover:bg-white/15 text-slate-200"
+                  title="Reset to center"
+                >
+                  Center
+                </button>
+              </div>
+            )}
+
+            {/* Quality Score Trigger / Badge */}
             {!qualityScore && !isGifOutput ? (
               <button
                 onClick={handleCalculateQuality}
@@ -194,28 +319,30 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
                 {isCalculatingQuality ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-prism-cyan" />
-                    <span>Measuring SSIM...</span>
+                    <span>Analyzing SSIM/PSNR...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-3.5 h-3.5 text-prism-amber" />
-                    <span>Measure SSIM</span>
+                    <span>Measure Quality (SSIM)</span>
                   </>
                 )}
               </button>
             ) : qualityScore ? (
-              <div className="flex items-center space-x-2 text-xs font-mono">
-                {qualityScore.ssim && (
-                  <span className="px-2.5 py-1 rounded-lg bg-prism-mint/15 text-prism-mint border border-prism-mint/30 font-bold">
-                    SSIM: {qualityScore.ssim}
-                  </span>
-                )}
-                {qualityScore.psnr && (
-                  <span className="px-2.5 py-1 rounded-lg bg-prism-cyan/15 text-prism-cyan border border-prism-cyan/30 font-bold">
-                    PSNR: {qualityScore.psnr} dB
-                  </span>
-                )}
-              </div>
+              <button
+                onClick={() => setShowQualityDetails(!showQualityDetails)}
+                className="flex items-center space-x-2 text-xs font-mono px-3 py-1 rounded-xl bg-prism-mint/15 hover:bg-prism-mint/25 border border-prism-mint/30 transition-colors"
+                title="Click to toggle detailed metric explanations"
+              >
+                <span className="font-bold text-prism-mint">
+                  SSIM: {qualityScore.ssim}
+                </span>
+                <span className="text-slate-400">|</span>
+                <span className="font-bold text-prism-cyan">
+                  {qualityScore.psnr} dB
+                </span>
+                <Info className="w-3.5 h-3.5 text-prism-mint ml-0.5" />
+              </button>
             ) : null}
 
             {/* Close Button */}
@@ -229,17 +356,71 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
           </div>
         </div>
 
-        {/* 2. Precision Dual-Stream Viewport Canvas */}
+        {/* 2. Educational SSIM & PSNR Quality Analysis Panel */}
+        {qualityScore && showQualityDetails && (
+          <div className="p-4 bg-void-950/95 border-b border-white/[0.08] space-y-3 animate-fade-in shadow-2xl">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-prism-mint shrink-0" />
+                <span className="text-xs font-bold text-white tracking-wide">
+                  تحلیل کیفیت بصری علمی (Scientific Fidelity Analysis)
+                </span>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-sans font-bold bg-prism-mint/20 text-prism-mint border border-prism-mint/40">
+                رتبه کیفی: {getQualityVerdict(qualityScore.ssim, qualityScore.psnr)}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              {/* SSIM explanation card */}
+              <div className="p-3 rounded-xl bg-void-900/90 border border-prism-mint/30 text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-prism-mint font-mono">
+                    SSIM = {qualityScore.ssim} / 1.000
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-300 px-1.5 py-0.2 rounded bg-prism-mint/10">
+                    تشابه ساختاری تصویر
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed pt-0.5">
+                  معیار SSIM نشان‌دهنده دقت شباهت نور، کنتراست و بافت‌های پیکسلی از زاویه دید چشم انسان است. عدد <strong className="text-white font-mono">{qualityScore.ssim}</strong> یعنی بیش از <strong className="text-prism-mint font-mono">{((qualityScore.ssim || 0) * 100).toFixed(1)}٪</strong> فریم‌های ویدئو با نسخه اصلی مو نمی‌زنند. (استاندارد عالی: بالای ۰.۹۵).
+                </p>
+              </div>
+
+              {/* PSNR explanation card */}
+              <div className="p-3 rounded-xl bg-void-900/90 border border-prism-cyan/30 text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-prism-cyan font-mono">
+                    PSNR = {qualityScore.psnr} dB
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-300 px-1.5 py-0.2 rounded bg-prism-cyan/10">
+                    نسبت سیگنال به نویز
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed pt-0.5">
+                  شاخص PSNR خلوص تصویر را بر حسب دسی‌بل اندازه می‌گیرد. استاندارد کیفیت پخش تلویزیونی ۳۵ تا ۴۰ دسی‌بل است؛ عدد <strong className="text-white font-mono">{qualityScore.psnr} dB</strong> خلوص سطح استودیو را تضمین می‌کند و نویز فشرده‌سازی در آن عملاً صفر است.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. Precision Dual-Stream Viewport Canvas */}
         <div
           ref={containerRef}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
-          className="relative flex-1 min-h-[380px] sm:min-h-[480px] bg-black select-none overflow-hidden cursor-ew-resize"
+          onMouseUp={handleMouseUp}
+          className={`relative flex-1 min-h-[380px] sm:min-h-[480px] bg-black select-none overflow-hidden ${
+            zoomLevel > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-ew-resize'
+          }`}
         >
-          {/* Zoom Wrapper - Everything inside scales together with origin: center */}
+          {/* Zoom & Pan Wrapper - Transforms both video streams and the divider together */}
           <div
-            className="absolute inset-0 origin-center pointer-events-none transition-transform duration-200"
-            style={{ transform: `scale(${zoomLevel})` }}
+            className="absolute inset-0 origin-center pointer-events-none transition-transform duration-100 ease-out"
+            style={{
+              transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`,
+            }}
           >
             {/* Stream 1: Compressed Video (Underneath Layer) */}
             {isGifOutput ? (
@@ -273,17 +454,15 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
 
             {/* Divider Seam Line - INSIDE Zoom Wrapper so it ALWAYS sits directly on the video's cut line */}
             <div
-              className="absolute top-0 bottom-0 z-30 cursor-ew-resize flex items-center justify-center -ml-[1px] pointer-events-auto"
-              style={{ left: `${sliderPosition}%`, width: `${2 / zoomLevel}px` }}
+              className="seam-handle absolute top-0 bottom-0 z-30 flex items-center justify-center -ml-[1px] pointer-events-auto cursor-ew-resize"
+              style={{ left: `${sliderPosition}%`, width: `${Math.max(2, 4 / zoomLevel)}px` }}
             >
               {/* Vertical line matching zoom resolution */}
-              <div
-                className="w-full h-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.9)]"
-              />
+              <div className="w-[2px] h-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.95)]" />
 
               {/* Seam Handle Icon - Counter-scaled so it stays crisp at all zoom levels */}
               <div
-                className="absolute w-8 h-8 rounded-full bg-void-950 border-2 border-white shadow-[0_0_16px_#00D2FF] flex items-center justify-center text-prism-cyan text-xs font-bold cursor-ew-resize"
+                className="seam-handle absolute w-8 h-8 rounded-full bg-void-950 border-2 border-white shadow-[0_0_16px_#00D2FF] flex items-center justify-center text-prism-cyan text-xs font-bold cursor-ew-resize"
                 style={{ transform: `scale(${1 / zoomLevel})` }}
               >
                 ⬌
@@ -316,9 +495,19 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
               </p>
             </div>
           </div>
+
+          {/* Interactive Zoom Panning Hint Badge */}
+          {zoomLevel > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+              <div className="px-3.5 py-1 rounded-full bg-void-950/90 backdrop-blur-md border border-prism-cyan/40 text-[11px] font-sans text-slate-300 shadow-xl flex items-center space-x-2">
+                <Move className="w-3.5 h-3.5 text-prism-cyan animate-pulse" />
+                <span>کلیک و درگ روی ویدئو برای حرکت به اطراف (Pan Viewport) • بزرگ‌نمایی: {zoomLevel}x</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* 3. Player Controls Bar */}
+        {/* 4. Player Controls Bar */}
         <div className="p-4 bg-void-950 border-t border-white/[0.08] flex flex-wrap items-center gap-3 sm:gap-4">
           {/* Play/Pause */}
           <button

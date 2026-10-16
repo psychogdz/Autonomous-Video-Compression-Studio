@@ -79,7 +79,7 @@ export const App: React.FC = () => {
 
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  // 1. Fetch system status on load
+  // 1. Fetch system status & connect to real-time Batch Queue stream
   useEffect(() => {
     fetch('/api/health')
       .then((res) => res.json())
@@ -94,6 +94,21 @@ export const App: React.FC = () => {
       .catch(() => {});
 
     fetchQueue();
+
+    // Persistent real-time Server-Sent Events stream for Batch Queue
+    const queueEventSource = new EventSource('/api/queue/stream');
+    queueEventSource.onmessage = (e) => {
+      try {
+        const q: QueueJob[] = JSON.parse(e.data);
+        setQueue(q);
+      } catch {
+        // Ignore parsing errors
+      }
+    };
+
+    return () => {
+      queueEventSource.close();
+    };
   }, []);
 
   const fetchQueue = () => {
@@ -487,20 +502,56 @@ export const App: React.FC = () => {
         isOpen={isQueueOpen}
         onClose={() => setIsQueueOpen(false)}
         onStartQueue={() => {
-          fetch('/api/queue/start', { method: 'POST' }).then(() => fetchQueue());
+          fetch('/api/queue/start', { method: 'POST' });
         }}
         onPauseQueue={() => {
-          fetch('/api/queue/pause', { method: 'POST' }).then(() => fetchQueue());
+          fetch('/api/queue/pause', { method: 'POST' });
         }}
         onCancelJob={(id) => {
-          fetch(`/api/queue/${id}/cancel`, { method: 'POST' }).then(() => fetchQueue());
+          fetch(`/api/queue/${id}/cancel`, { method: 'POST' });
         }}
         onRemoveJob={(id) => {
-          fetch(`/api/queue/${id}`, { method: 'DELETE' }).then(() => fetchQueue());
+          fetch(`/api/queue/${id}`, { method: 'DELETE' });
         }}
         onClearCompleted={() => {
-          fetchQueue();
+          fetch('/api/queue/clear-completed', { method: 'POST' });
         }}
+        onRetryJob={(id) => {
+          fetch(`/api/queue/${id}/retry`, { method: 'POST' });
+        }}
+        onMoveJob={(id, direction) => {
+          fetch(`/api/queue/${id}/move`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ direction }),
+          });
+        }}
+        onUpdateJobConfig={(id, newConfig) => {
+          fetch(`/api/queue/${id}/config`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ config: newConfig }),
+          });
+        }}
+        onAddFiles={(filePaths) => {
+          filePaths.forEach((fp) => {
+            fetch('/api/queue/add', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                filePath: fp,
+                config: {
+                  sourceFilePath: fp,
+                  mode,
+                  simpleConfig,
+                  targetSizeConfig,
+                  advancedConfig,
+                },
+              }),
+            });
+          });
+        }}
+        onRevealFolder={handleRevealFolder}
       />
     </div>
   );

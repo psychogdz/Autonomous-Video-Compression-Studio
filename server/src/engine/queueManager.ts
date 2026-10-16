@@ -1,3 +1,4 @@
+import path from 'path';
 import { QueueJob, CompressionJobConfig, EncodingProgress, CompressionOutcome } from '../../../shared/types.js';
 import { probeMedia } from './probeService.js';
 import { makeCompressionDecision } from './decisionEngine.js';
@@ -27,11 +28,12 @@ class QueueManager {
     this.listeners.forEach(fn => fn(this.getQueue()));
   }
 
-  public async addToQueue(filePath: string, customConfig?: Partial<CompressionJobConfig>): Promise<QueueJob> {
+  public async addToQueue(rawPath: string, customConfig?: Partial<CompressionJobConfig>): Promise<QueueJob> {
+    const filePath = path.normalize(rawPath.replace(/^["']|["']$/g, '').trim());
     const id = `job_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const job: QueueJob = {
       id,
-      fileName: filePath.split(/[/\\]/).pop() || 'video.mp4',
+      fileName: path.basename(filePath) || 'video.mp4',
       filePath,
       fileSizeBytes: 0,
       status: 'probing',
@@ -120,6 +122,44 @@ class QueueManager {
   public clearCompleted(): void {
     this.queue = this.queue.filter(j => j.status !== 'completed' && j.status !== 'cancelled');
     this.notify();
+  }
+
+  public async retryJob(jobId: string): Promise<boolean> {
+    const job = this.queue.find(j => j.id === jobId);
+    if (!job || job.status === 'encoding') return false;
+    job.status = 'probing';
+    job.error = undefined;
+    job.progress = undefined;
+    job.result = undefined;
+    this.notify();
+
+    try {
+      const probeData = await probeMedia(job.filePath);
+      job.probeData = probeData;
+      job.fileSizeBytes = probeData.fileSizeBytes;
+      const hw = await detectHardwareCapabilities();
+      const availableEncoders = hw.encoders.filter(e => e.available).map(e => e.id);
+      job.estimate = makeCompressionDecision(probeData, job.config, availableEncoders);
+      job.status = 'ready';
+    } catch (err: any) {
+      job.status = 'failed';
+      job.error = `Probe failed: ${err.message}`;
+    }
+    this.notify();
+    this.processNext();
+    return true;
+  }
+
+  public moveJob(jobId: string, direction: 'up' | 'down'): boolean {
+    const idx = this.queue.findIndex(j => j.id === jobId);
+    if (idx === -1) return false;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= this.queue.length) return false;
+    const temp = this.queue[idx];
+    this.queue[idx] = this.queue[targetIdx];
+    this.queue[targetIdx] = temp;
+    this.notify();
+    return true;
   }
 
   private async processNext(): Promise<void> {

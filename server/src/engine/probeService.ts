@@ -46,7 +46,9 @@ export function calculateAspectRatio(width: number, height: number): string {
 /**
  * Analyzes video file using ffprobe.
  */
-export async function probeMedia(filePath: string): Promise<MediaProbeResult> {
+export async function probeMedia(inputPath: string): Promise<MediaProbeResult> {
+  const filePath = path.normalize(inputPath.replace(/^["']|["']$/g, '').trim());
+
   if (!fs.existsSync(filePath)) {
     throw new Error(`Media file not found at: ${filePath}`);
   }

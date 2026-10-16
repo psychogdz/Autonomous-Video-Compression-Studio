@@ -15,6 +15,7 @@ bin/*.zip
 
 # Media & Temporary Encoding Files
 temp/
+outputs/
 test_output/
 *.log
 ffmpeg2pass*.log*

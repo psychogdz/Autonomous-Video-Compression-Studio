@@ -73,11 +73,16 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Version pill */}
-          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-void-900/50 border border-white/[0.05] text-[11px] text-slate-400">
-            <ShieldCheck className="w-3.5 h-3.5 text-prism-cyan" />
-            <span>FFmpeg:</span>
-            <span className="font-mono text-slate-300">{ffmpegVersion ? `v${ffmpegVersion}` : '9.0.2'}</span>
+          {/* Clean Engine version pill */}
+          <div
+            className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-void-900/60 border border-white/[0.06] text-[11px] text-slate-300 shadow-glass-rim-subtle"
+            title="Local FFmpeg multimedia engine running 100% offline on your device"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-prism-mint" />
+            <span className="text-slate-400">Engine:</span>
+            <span className="font-mono font-semibold text-white">
+              FFmpeg v{(ffmpegVersion || '9.0.2').split('-')[0].replace(/^v/i, '')}
+            </span>
           </div>
 
           {/* Batch Queue Drawer Trigger */}

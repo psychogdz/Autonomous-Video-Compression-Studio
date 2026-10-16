@@ -45,9 +45,20 @@ export function parseTimeStringToSeconds(timeStr: string): number {
 
 /**
  * Builds safe default output file path with '_luminapress' suffix.
+ * If source file is in temporary uploads, routes output to the dedicated 'outputs/' directory.
  */
 export function generateSafeOutputPath(sourcePath: string, customOutputDir?: string, targetExtension?: string): string {
-  const dir = customOutputDir && fs.existsSync(customOutputDir) ? customOutputDir : path.dirname(sourcePath);
+  let dir = customOutputDir && fs.existsSync(customOutputDir) ? customOutputDir : path.dirname(sourcePath);
+
+  // Isolate temporary uploads away from compressed outputs
+  const normalized = sourcePath.replace(/\\/g, '/').toLowerCase();
+  if (normalized.includes('/temp/uploads') || normalized.includes('/temp/')) {
+    dir = path.join(process.cwd(), 'outputs');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+
   const ext = targetExtension ? targetExtension : (path.extname(sourcePath) || '.mp4');
   const baseName = path.basename(sourcePath, path.extname(sourcePath));
 
@@ -106,6 +117,7 @@ export async function startCompressionJob(
       const tempPassLogPrefix = path.join(
         process.cwd(),
         'temp',
+        'passes',
         `pass_${jobId}_${Date.now()}`
       );
       job.tempPassLogPrefix = tempPassLogPrefix;

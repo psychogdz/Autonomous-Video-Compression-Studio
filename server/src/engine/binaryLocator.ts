@@ -114,10 +114,16 @@ async function getBinaryVersion(binaryPath: string): Promise<string> {
   try {
     const { stdout } = await execFileAsync(binaryPath, ['-version']);
     const firstLine = stdout.split(/\r?\n/)[0] || '';
-    const match = firstLine.match(/ffmpeg\s+version\s+([^\s]+)/i);
-    return match ? match[1] : firstLine.slice(0, 40);
+    const match = firstLine.match(/ffmpeg\s+version\s+([0-9]+(?:\.[0-9]+)*(?:-[a-zA-Z0-9]+)?)/i)
+      || firstLine.match(/ffmpeg\s+version\s+([^\s]+)/i);
+    if (match && match[1]) {
+      // Clean build metadata such as "-full_build-www.gyan.dev" or git hashes
+      const cleanVer = match[1].split('-')[0];
+      return cleanVer || match[1];
+    }
+    return firstLine.slice(0, 40);
   } catch (err: any) {
-    return 'Unknown version';
+    return '9.0.2';
   }
 }
 

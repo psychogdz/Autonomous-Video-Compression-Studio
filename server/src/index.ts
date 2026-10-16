@@ -24,11 +24,19 @@ const PORT = process.env.SERVER_PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Setup temporary upload storage for web file picker
+// Setup isolated directory structure:
+// temp/uploads/ -> Incoming uploaded raw video source files
+// temp/passes/  -> Temporary 2-pass log files (cleaned up after encode)
+// outputs/      -> Dedicated permanent directory for completed deliverables
 const uploadDir = path.join(process.cwd(), 'temp', 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+const passesDir = path.join(process.cwd(), 'temp', 'passes');
+const outputsDir = path.join(process.cwd(), 'outputs');
+
+[uploadDir, passesDir, outputsDir].forEach((dir) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
@@ -362,6 +370,47 @@ app.post('/api/queue/start', (_req: Request, res: Response) => {
 app.post('/api/queue/pause', (_req: Request, res: Response) => {
   queueManager.pauseQueue();
   res.json({ status: 'paused' });
+});
+
+// Real-Time Queue Updates via SSE
+app.get('/api/queue/stream', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Initial queue state
+  res.write(`data: ${JSON.stringify(queueManager.getQueue())}\n\n`);
+
+  const unsubscribe = queueManager.subscribe((q) => {
+    res.write(`data: ${JSON.stringify(q)}\n\n`);
+  });
+
+  _req.on('close', () => {
+    unsubscribe();
+  });
+});
+
+app.post('/api/queue/clear-completed', (_req: Request, res: Response) => {
+  queueManager.clearCompleted();
+  res.json({ status: 'cleared' });
+});
+
+app.post('/api/queue/:id/retry', async (req: Request, res: Response) => {
+  const success = await queueManager.retryJob(req.params.id);
+  res.json({ success });
+});
+
+app.post('/api/queue/:id/move', (req: Request, res: Response) => {
+  const { direction } = req.body;
+  const success = queueManager.moveJob(req.params.id, direction === 'up' ? 'up' : 'down');
+  res.json({ success });
+});
+
+app.put('/api/queue/:id/config', (req: Request, res: Response) => {
+  const { config } = req.body;
+  const success = queueManager.updateJobConfig(req.params.id, config);
+  res.json({ success });
 });
 
 app.post('/api/queue/:id/cancel', (req: Request, res: Response) => {
