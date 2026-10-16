@@ -1,5 +1,5 @@
 import React from 'react';
-import { Rocket, Scale, Shield, MessageSquare, Smartphone, Zap } from 'lucide-react';
+import { Rocket, Scale, Shield, MessageSquare, Smartphone, Zap, Image as ImageIcon } from 'lucide-react';
 import { SimpleGoal, SimpleModeConfig } from '../../shared/types';
 
 interface SimpleModeProps {
@@ -64,6 +64,14 @@ export const SimpleMode: React.FC<SimpleModeProps> = ({ config, onChange, hasGpu
       tag: 'High Speed',
       icon: <Zap className="w-5 h-5 text-amber-400" />,
       color: 'border-amber-500/40 bg-amber-500/5',
+    },
+    {
+      id: 'gif_export',
+      title: 'Animated GIF Export',
+      description: 'Generates high-fidelity animated GIF using 256-color palettegen & Bayer dithering.',
+      tag: 'Animated GIF',
+      icon: <ImageIcon className="w-5 h-5 text-pink-400" />,
+      color: 'border-pink-500/40 bg-pink-500/5',
     },
   ];
 

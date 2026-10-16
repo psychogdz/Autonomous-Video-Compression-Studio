@@ -250,7 +250,10 @@ app.get('/api/stream', (req: Request, res: Response) => {
   const fileSize = stat.size;
   const range = req.headers.range;
 
-  if (range) {
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = ext === '.gif' ? 'image/gif' : ext === '.webm' ? 'video/webm' : 'video/mp4';
+
+  if (range && contentType !== 'image/gif') {
     const parts = range.replace(/bytes=/, '').split('-');
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
@@ -261,13 +264,13 @@ app.get('/api/stream', (req: Request, res: Response) => {
       'Content-Range': `bytes ${start}-${end}/${fileSize}`,
       'Accept-Ranges': 'bytes',
       'Content-Length': chunksize,
-      'Content-Type': 'video/mp4',
+      'Content-Type': contentType,
     });
     file.pipe(res);
   } else {
     res.writeHead(200, {
       'Content-Length': fileSize,
-      'Content-Type': 'video/mp4',
+      'Content-Type': contentType,
     });
     fs.createReadStream(filePath).pipe(res);
   }

@@ -7,30 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-10-16
+### Added
+- **Full Animated GIF Input & Output Support:**
+  - **GIF Input:** Users can drag-and-drop or load `.gif` files into the studio. Probed accurately as video streams without audio.
+  - **GIF to Video Compression:** Converts bulky GIFs into ultra-compact H.264 / H.265 / AV1 MP4 videos, achieving **88%+ size reduction**.
+  - **Video to Animated GIF Export:** Dedicated "Animated GIF Export" goal and codec in Advanced Mode. Uses two-pass FFmpeg `palettegen` (256 colors) and `paletteuse` with Lanczos scaling and Bayer dithering to eliminate ugly banding and grain artifacts.
+  - Native animated GIF preview support in `ResultCard.tsx` with automatic looping.
+  - Automated test suite `tests/gifSupport.test.ts` verifying probe, decision engine, Video-to-GIF, and GIF-to-Video conversions.
+
+---
+
 ## [1.0.0] - 2026-10-16
 ### Added
-- **Core Video Compression Engine:**
-  - Multi-strategy FFmpeg 9.0.2 & FFprobe binary locator (`./bin`, WinGet, PATH, custom).
-  - Media stream inspection and technical metadata extractor (`probeService.ts`).
-  - Intelligent Decision Engine translating user goals into optimal mathematical encoding profiles (`decisionEngine.ts`).
-  - 2-Pass strict bitrate calculator for Target Size Mode (e.g. Discord 25MB).
-  - Child process execution manager with live regex-based stderr and stdout progress parsing (`encoderService.ts`).
-  - Hardware acceleration detection for NVIDIA NVENC, Intel QuickSync, and AMD AMF (`hardwareAccel.ts`).
-  - Objective visual quality computation using SSIM and PSNR filter graphs (`qualityMetrics.ts`).
-  - Multi-file batch queue manager with pause, resume, and concurrency control (`queueManager.ts`).
-- **Obsidian Dark Studio Frontend (React 19 + Vite + Tailwind):**
-  - Modern Header with real-time GPU/CPU acceleration indicator and batch counter.
-  - Video Dropzone supporting drag & drop, file picker, and direct local path entry.
-  - Technical Media Inspector card displaying resolution, codecs, aspect ratio, frame rate, and audio streams.
-  - Mode Selector with three distinct interaction workflows:
-    - **Simple Mode:** Goal cards (Maximum Compression, Balanced, Archival, Discord, WhatsApp, Telegram).
-    - **Target Size Mode:** Exact MB budget slider and 2-Pass bitrate calculator.
-    - **Advanced Mode:** Granular control over codecs (x264, x265, SVT-AV1, NVENC), CRF slider, speed presets, downscaling, and audio channels.
-  - Real-time Encoding Telemetry panel with live progress bar, processing FPS, speed multiplier, and ETA.
-  - Interactive Before/After Video Comparison Modal with synchronized dual video scrubbing and draggable split divider.
-  - Post-compression Result Card with savings badge (-82.6%), file reveal, and audit report generator.
-- **Distribution & Launchers:**
-  - `LuminaPress.bat` for one-click launch on Windows.
-  - `LuminaPress.sh` for one-click launch on Unix/macOS.
-- **Automated Verification:**
-  - 13 passing Vitest tests covering probing, decision engine, real E2E compression, cancellation cleanup, HTTP 206 range streaming, and batch queue operations.
+- Core video compression engine with FFmpeg 9.0.2 full build integration.
+- Obsidian Dark Studio React 19 + Vite + Tailwind interface.
+- Simple Mode, Target Size Mode (2-Pass), and Advanced Mode.
+- Live telemetry streaming via Server-Sent Events (SSE).
+- Interactive Video Comparison Modal with split-slider and SSIM/PSNR calculation.
+- Multi-file batch queue manager.
+- Compression audit report export in Markdown and JSON.
+- One-click launcher scripts for Windows (`LuminaPress.bat`) and Unix (`LuminaPress.sh`).

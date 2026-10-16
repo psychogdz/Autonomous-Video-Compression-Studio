@@ -11,7 +11,8 @@ export type SimpleGoal =
   | 'discord_25'        // Target <= 25MB for Discord/Email
   | 'discord_10'        // Target <= 10MB
   | 'whatsapp_hd'       // Optimized 720p/1080p for mobile apps
-  | 'telegram_fast';    // Fast encoding for immediate share
+  | 'telegram_fast'     // Fast encoding for immediate share
+  | 'gif_export';       // High-quality animated GIF with palettegen
 
 export type VideoCodec =
   | 'libx264'
@@ -23,7 +24,8 @@ export type VideoCodec =
   | 'h264_qsv'
   | 'hevc_qsv'
   | 'h264_amf'
-  | 'hevc_amf';
+  | 'hevc_amf'
+  | 'gif';
 
 export type EncoderSpeedPreset =
   | 'ultrafast'

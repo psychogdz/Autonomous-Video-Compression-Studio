@@ -141,15 +141,25 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         </div>
       </div>
 
-      {/* Embedded Video Preview Player */}
+      {/* Embedded Video or GIF Preview */}
       <div className="rounded-xl overflow-hidden bg-obsidian-950 border border-obsidian-700/70 relative group">
-        <video
-          ref={videoRef}
-          src={streamUrl}
-          className="w-full max-h-72 object-contain bg-black"
-          onEnded={() => setIsPlaying(false)}
-          controls
-        />
+        {result.outputFilePath.toLowerCase().endsWith('.gif') ? (
+          <div className="flex justify-center p-3 bg-black">
+            <img
+              src={streamUrl}
+              alt="Compressed Animated GIF"
+              className="max-h-72 object-contain rounded"
+            />
+          </div>
+        ) : (
+          <video
+            ref={videoRef}
+            src={streamUrl}
+            className="w-full max-h-72 object-contain bg-black"
+            onEnded={() => setIsPlaying(false)}
+            controls
+          />
+        )}
         <div className="p-3 bg-obsidian-900/90 border-t border-obsidian-700/60 flex items-center justify-between text-xs text-slate-300">
           <span className="font-mono truncate max-w-xs sm:max-w-md">
             {result.outputFilePath.split(/[/\\]/).pop()}

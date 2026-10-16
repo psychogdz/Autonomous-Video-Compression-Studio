@@ -46,10 +46,10 @@ export function parseTimeStringToSeconds(timeStr: string): number {
 /**
  * Builds safe default output file path with '_luminapress' suffix.
  */
-export function generateSafeOutputPath(sourcePath: string, customOutputDir?: string): string {
+export function generateSafeOutputPath(sourcePath: string, customOutputDir?: string, targetExtension?: string): string {
   const dir = customOutputDir && fs.existsSync(customOutputDir) ? customOutputDir : path.dirname(sourcePath);
-  const ext = path.extname(sourcePath) || '.mp4';
-  const baseName = path.basename(sourcePath, ext);
+  const ext = targetExtension ? targetExtension : (path.extname(sourcePath) || '.mp4');
+  const baseName = path.basename(sourcePath, path.extname(sourcePath));
 
   let candidate = path.join(dir, `${baseName}_luminapress${ext}`);
   let counter = 1;
@@ -68,13 +68,11 @@ export async function startCompressionJob(
   config: CompressionJobConfig,
   onProgress?: (p: EncodingProgress) => void
 ): Promise<CompressionOutcome> {
-  const outputFilePath = config.outputFilePath || generateSafeOutputPath(config.sourceFilePath);
-
   const job: ActiveJob = {
     jobId,
     config,
     status: 'running',
-    outputFilePath,
+    outputFilePath: config.outputFilePath || '',
     listeners: onProgress ? [onProgress] : [],
     completionListeners: [],
     errorListeners: [],
@@ -86,6 +84,11 @@ export async function startCompressionJob(
   const hardware = await detectHardwareCapabilities();
   const availableEncoders = hardware.encoders.filter(e => e.available).map(e => e.id);
   const decision = makeCompressionDecision(probe, config, availableEncoders);
+
+  const isTargetGif = decision.resolvedCodec === 'gif';
+  const targetExt = isTargetGif ? '.gif' : '.mp4';
+  const outputFilePath = config.outputFilePath || generateSafeOutputPath(config.sourceFilePath, undefined, targetExt);
+  job.outputFilePath = outputFilePath;
 
   // Ensure output directory exists
   const outDir = path.dirname(outputFilePath);
@@ -253,58 +256,70 @@ function executePass(args: PassExecutionArgs): Promise<{ frames: number; speed: 
       '-i', sourceFilePath,
     ];
 
-    // Video Filter: Resolution Scaling
-    const sourceWidth = probe.primaryVideo?.width || decision.resolvedWidth;
-    const sourceHeight = probe.primaryVideo?.height || decision.resolvedHeight;
-    if (decision.resolvedWidth !== sourceWidth || decision.resolvedHeight !== sourceHeight) {
-      ffmpegArgs.push('-vf', `scale=${decision.resolvedWidth}:${decision.resolvedHeight}`);
-    }
+    // Video Encoding or GIF Creation
+    if (decision.resolvedCodec === 'gif') {
+      const targetFps = decision.resolvedFps || 15;
+      const targetWidth = decision.resolvedWidth;
+      const targetHeight = decision.resolvedHeight;
+      const filterComplex = `[0:v] fps=${targetFps},scale=${targetWidth}:${targetHeight}:flags=lanczos,split [a][b];[a] palettegen=max_colors=256:stats_mode=single [p];[b][p] paletteuse=dither=bayer:bayer_scale=5`;
 
-    // Video Codec
-    ffmpegArgs.push('-c:v', decision.resolvedCodec);
-
-    // Preset
-    if (!decision.resolvedCodec.includes('nvenc')) {
-      ffmpegArgs.push('-preset', decision.resolvedPreset);
-    } else {
-      // NVENC uses p1 - p7 presets
-      ffmpegArgs.push('-preset', 'p4');
-    }
-
-    // Pixel format
-    ffmpegArgs.push('-pix_fmt', 'yuv420p');
-
-    // Rate Control
-    if (decision.twoPass && passNumber) {
-      ffmpegArgs.push('-b:v', `${decision.targetVideoBitrateKbps}k`);
-      ffmpegArgs.push('-maxrate', `${Math.round((decision.targetVideoBitrateKbps || 1000) * 1.5)}k`);
-      ffmpegArgs.push('-bufsize', `${Math.round((decision.targetVideoBitrateKbps || 1000) * 2)}k`);
-      ffmpegArgs.push('-pass', passNumber.toString());
-      if (passLogPrefix) {
-        ffmpegArgs.push('-passlogfile', passLogPrefix);
-      }
-    } else if (decision.targetVideoBitrateKbps) {
-      ffmpegArgs.push('-b:v', `${decision.targetVideoBitrateKbps}k`);
-      ffmpegArgs.push('-maxrate', `${Math.round(decision.targetVideoBitrateKbps * 1.5)}k`);
-      ffmpegArgs.push('-bufsize', `${Math.round(decision.targetVideoBitrateKbps * 2)}k`);
-    } else if (decision.crf !== undefined) {
-      ffmpegArgs.push('-crf', decision.crf.toString());
-    }
-
-    // Audio & Output handling per pass
-    if (passNumber === 1) {
-      ffmpegArgs.push('-an'); // No audio on Pass 1
-      ffmpegArgs.push('-f', 'null');
+      ffmpegArgs.push('-filter_complex', filterComplex);
+      ffmpegArgs.push('-an'); // GIFs have no audio
       ffmpegArgs.push(targetFilePath);
     } else {
-      if (decision.targetAudioBitrateKbps === 0) {
-        ffmpegArgs.push('-an');
+      // Video Filter: Resolution Scaling
+      const sourceWidth = probe.primaryVideo?.width || decision.resolvedWidth;
+      const sourceHeight = probe.primaryVideo?.height || decision.resolvedHeight;
+      if (decision.resolvedWidth !== sourceWidth || decision.resolvedHeight !== sourceHeight) {
+        ffmpegArgs.push('-vf', `scale=${decision.resolvedWidth}:${decision.resolvedHeight}`);
+      }
+
+      // Video Codec
+      ffmpegArgs.push('-c:v', decision.resolvedCodec);
+
+      // Preset
+      if (!decision.resolvedCodec.includes('nvenc')) {
+        ffmpegArgs.push('-preset', decision.resolvedPreset);
       } else {
-        ffmpegArgs.push('-c:a', 'aac');
-        ffmpegArgs.push('-b:a', `${decision.targetAudioBitrateKbps}k`);
+        // NVENC uses p1 - p7 presets
+        ffmpegArgs.push('-preset', 'p4');
       }
-      ffmpegArgs.push('-movflags', '+faststart'); // web streaming optimization
-      ffmpegArgs.push(targetFilePath);
+
+      // Pixel format
+      ffmpegArgs.push('-pix_fmt', 'yuv420p');
+
+      // Rate Control
+      if (decision.twoPass && passNumber) {
+        ffmpegArgs.push('-b:v', `${decision.targetVideoBitrateKbps}k`);
+        ffmpegArgs.push('-maxrate', `${Math.round((decision.targetVideoBitrateKbps || 1000) * 1.5)}k`);
+        ffmpegArgs.push('-bufsize', `${Math.round((decision.targetVideoBitrateKbps || 1000) * 2)}k`);
+        ffmpegArgs.push('-pass', passNumber.toString());
+        if (passLogPrefix) {
+          ffmpegArgs.push('-passlogfile', passLogPrefix);
+        }
+      } else if (decision.targetVideoBitrateKbps) {
+        ffmpegArgs.push('-b:v', `${decision.targetVideoBitrateKbps}k`);
+        ffmpegArgs.push('-maxrate', `${Math.round(decision.targetVideoBitrateKbps * 1.5)}k`);
+        ffmpegArgs.push('-bufsize', `${Math.round(decision.targetVideoBitrateKbps * 2)}k`);
+      } else if (decision.crf !== undefined) {
+        ffmpegArgs.push('-crf', decision.crf.toString());
+      }
+
+      // Audio & Output handling per pass
+      if (passNumber === 1) {
+        ffmpegArgs.push('-an'); // No audio on Pass 1
+        ffmpegArgs.push('-f', 'null');
+        ffmpegArgs.push(targetFilePath);
+      } else {
+        if (decision.targetAudioBitrateKbps === 0) {
+          ffmpegArgs.push('-an');
+        } else {
+          ffmpegArgs.push('-c:a', 'aac');
+          ffmpegArgs.push('-b:a', `${decision.targetAudioBitrateKbps}k`);
+        }
+        ffmpegArgs.push('-movflags', '+faststart'); // web streaming optimization
+        ffmpegArgs.push(targetFilePath);
+      }
     }
 
     const proc = spawn(ffmpegPath, ffmpegArgs, {

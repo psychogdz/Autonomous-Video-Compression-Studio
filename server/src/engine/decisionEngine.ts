@@ -183,6 +183,22 @@ export function makeCompressionDecision(
         break;
       }
 
+      case 'gif_export': {
+        resolvedCodec = 'gif';
+        resolvedFps = Math.min(15, sourceFps > 0 ? sourceFps : 15);
+        crf = undefined;
+        targetAudioBitrateKbps = 0;
+        if (sourceHeight > 720) {
+          const dims = resolveResolution('720p', sourceWidth, sourceHeight);
+          resolvedWidth = dims.width;
+          resolvedHeight = dims.height;
+          warnings.push(`Downscaled to 720p to maintain efficient GIF file size.`);
+        }
+        estimatedSizeBytes = Math.round(resolvedWidth * resolvedHeight * resolvedFps * durationSeconds * 0.22);
+        explanation = 'Animated GIF: Exporting high-fidelity animated GIF using 256-color palettegen with Lanczos scaling and Bayer dithering.';
+        break;
+      }
+
       case 'balanced':
       default: {
         resolvedCodec = 'libx264';
@@ -230,7 +246,14 @@ export function makeCompressionDecision(
     resolvedHeight = dims.height;
     resolvedFps = adv.fps && adv.fps > 0 ? adv.fps : sourceFps;
 
-    if (adv.videoBitrateKbps && adv.videoBitrateKbps > 0) {
+    if (adv.codec === 'gif') {
+      resolvedCodec = 'gif';
+      crf = undefined;
+      targetAudioBitrateKbps = 0;
+      resolvedFps = adv.fps && adv.fps > 0 ? adv.fps : Math.min(15, sourceFps > 0 ? sourceFps : 15);
+      estimatedSizeBytes = Math.round(resolvedWidth * resolvedHeight * resolvedFps * durationSeconds * 0.22);
+      explanation = `Advanced GIF: Animated GIF export at ${resolvedWidth}x${resolvedHeight} @ ${resolvedFps}fps.`;
+    } else if (adv.videoBitrateKbps && adv.videoBitrateKbps > 0) {
       targetVideoBitrateKbps = adv.videoBitrateKbps;
       crf = undefined;
       const totalBitrate = targetVideoBitrateKbps + adv.audioBitrateKbps;

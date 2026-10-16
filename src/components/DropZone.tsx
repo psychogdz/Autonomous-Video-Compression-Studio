@@ -64,7 +64,7 @@ export const DropZone: React.FC<DropZoneProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/*,.mp4,.mov,.mkv,.webm,.avi,.flv,.ts"
+          accept="video/*,image/gif,.mp4,.mov,.mkv,.webm,.avi,.flv,.ts,.gif"
           className="hidden"
           onChange={handleFileInputChange}
         />
@@ -99,7 +99,7 @@ export const DropZone: React.FC<DropZoneProps> = ({
             </div>
             <div className="flex items-center space-x-2 text-[11px] text-slate-400 bg-obsidian-850 px-3 py-1.5 rounded-full border border-obsidian-700/50">
               <Film className="w-3.5 h-3.5 text-slate-400" />
-              <span>Supports MP4, MOV, MKV, WebM, AVI, TS, ProRes</span>
+              <span>Supports MP4, MOV, MKV, WebM, AVI, GIF, TS, ProRes</span>
             </div>
           </div>
         )}

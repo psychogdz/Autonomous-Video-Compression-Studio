@@ -1,12 +1,12 @@
 # PROJECT STATUS — LuminaPress Video Studio
-## Version 1.0.0 — Production Ready & Verified
+## Version 1.1.0 — Production Ready, Verified & Animated GIF Support
 
 ---
 
 ### Executive Status Summary
-- **Current Milestone:** Version 1.0.0 Completed (Phases 0, 1, 2, 3, 4 fully implemented and verified).
+- **Current Milestone:** Version 1.1.0 Completed (GIF Input & Output, Multi-Mode Compression, 17/17 tests passing).
 - **Architecture Integrity:** 100% decoupled client-server architecture with Node.js Express backend, native FFmpeg/FFprobe child processes, SSE telemetry streaming, and Vite + React 19 studio interface.
-- **Test Suite Status:** 13 / 13 automated tests passing in Vitest (Unit, Integration, E2E Encoding, Cancellation, Range Streaming, Queue Manager, SSIM/PSNR).
+- **Test Suite Status:** 17 / 17 automated tests passing in Vitest (Unit, Integration, E2E Encoding, Cancellation, Range Streaming, Queue Manager, SSIM/PSNR, GIF Input & GIF Output).
 - **Visual Identity:** Custom Obsidian Dark Studio aesthetic verified and inspected live in browser.
 
 ---
@@ -19,7 +19,8 @@
 | **Phase 1** | Core Video Engine & Functional Prototype | **COMPLETED** | `binaryLocator.ts`, `probeService.ts`, `decisionEngine.ts`, `encoderService.ts`, `hardwareAccel.ts` |
 | **Phase 2** | Studio UI & Multi-Mode Interaction Experience | **COMPLETED** | React Studio UI, Simple Mode, Target Size Mode, Advanced Mode, Live Progress Monitor |
 | **Phase 3** | Batch Queue & Advanced Capabilities | **COMPLETED** | Multi-file Batch Queue, SSIM/PSNR visual quality calculator, Audit Report exporter |
-| **Phase 4** | Hardening, Automated Testing & Release | **COMPLETED** | Vitest test suite (13 passing tests), `LuminaPress.bat`, `LuminaPress.sh`, production build |
+| **Phase 4** | Hardening, Automated Testing & Release | **COMPLETED** | Vitest test suite (17 passing tests), `LuminaPress.bat`, `LuminaPress.sh`, production build |
+| **Feature** | Animated GIF Input & Output Support | **COMPLETED** | Probing GIFs, Video → GIF with `palettegen` & Bayer dithering, GIF → MP4 compression (-88%) |
 
 ---
 
@@ -28,7 +29,7 @@
 ```
  RUN  v3.2.7  C:/Users/P1165/Documents/Cloud Code/Autonomous Video Compression Studio
 
- ✓ tests/apiAndQueue.test.ts  (6 tests) 303ms
+ ✓ tests/apiAndQueue.test.ts  (6 tests) 377ms
    ✓ 1. GET /api/health should return ok and FFmpeg binary details
    ✓ 2. GET /api/hardware should return detected encoders
    ✓ 3. POST /api/probe should analyze file metadata
@@ -36,39 +37,37 @@
    ✓ 5. GET /api/stream should support HTTP 206 partial content range requests
    ✓ 6. Queue Manager should support adding, updating, and removing batch jobs
 
- ✓ tests/coreEngine.test.ts  (7 tests) 3391ms
+ ✓ tests/gifSupport.test.ts  (4 tests) 3210ms
+   ✓ 1. Probe Service should analyze animated GIF input files correctly
+   ✓ 2. Decision Engine should calibrate parameters for GIF Export goal
+   ✓ 3. Video to Animated GIF Conversion should produce a valid, high-quality .gif file (2507ms)
+   ✓ 4. Animated GIF to MP4 Conversion should compress GIF into high-efficiency video (580ms)
+
+ ✓ tests/coreEngine.test.ts  (7 tests) 4043ms
    ✓ 1. Binary Locator should discover and validate local FFmpeg & FFprobe
-   ✓ 2. Probe Service should accurately extract video and audio metadata (377ms)
+   ✓ 2. Probe Service should accurately extract video and audio metadata
    ✓ 3. Hardware Detection should probe available encoders
    ✓ 4. Decision Engine should calculate optimal parameters for all 3 modes
-   ✓ 5. End-to-End Compression should execute real FFmpeg encoding with live progress (1702ms)
-   ✓ 6. SSIM / PSNR Quality Service should measure visual fidelity (1193ms)
-   ✓ 7. Cancellation should terminate process and clean up temporary files immediately (352ms)
+   ✓ 5. End-to-End Compression should execute real FFmpeg encoding with live progress (2185ms)
+   ✓ 6. SSIM / PSNR Quality Service should measure visual fidelity (1406ms)
+   ✓ 7. Cancellation should terminate process and clean up temporary files immediately
 
- Test Files  2 passed (2)
-      Tests  13 passed (13)
-   Duration  4.14s
+ Test Files  3 passed (3)
+      Tests  17 passed (17)
+   Duration  4.92s
 ```
 
 ---
 
 ### Real Compression Benchmark Record
 
-- **Test Media:** 1080p Full HD, 30 FPS, H.264 video with AAC audio.
-- **Original Size:** 798.43 KB
-- **Compressed Output Size:** 138.69 KB
-- **Net Space Saved:** 659.74 KB (**-82.6% reduction**)
-- **Processing Time:** 3.0 seconds
-- **Output Codec:** H.265 / HEVC (`libx265`)
-- **Measured Quality:**
-  - SSIM: **0.9992** (99.92% visual structural similarity)
-  - PSNR: **55.94 dB** (exceptional visual fidelity)
+1. **Video to Video (1080p MP4 → H.265):**
+   - Original: 798.43 KB → Compressed: 138.69 KB (**-82.6% reduction**)
+   - Quality: SSIM = 0.9992, PSNR = 55.94 dB
 
----
+2. **GIF to Video (Animated GIF → H.265 MP4):**
+   - Original: 71.61 KB → Compressed: 8.47 KB (**-88.2% reduction**)
+   - Result: 8.47 KB smooth video playable in all players.
 
-### Handoff Protocol for Future Collaborators
-1. **To start development:** `npm run dev` starts both the Express API (port 3001) and Vite client (port 5173).
-2. **To build production assets:** `npm run build` compiles Vite frontend to `dist/` and backend TypeScript to `dist-server/`.
-3. **To run the full test suite:** `npm test` runs all 13 unit and integration tests.
-4. **To launch standalone on Windows:** Double click `LuminaPress.bat`.
-5. **To launch standalone on macOS/Linux:** Run `./LuminaPress.sh`.
+3. **Video to Animated GIF (MP4 → 256-color optimized GIF):**
+   - Output: High-fidelity `.gif` with Lanczos scaling, palettegen, and Bayer dithering.

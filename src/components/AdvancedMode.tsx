@@ -15,6 +15,7 @@ export const AdvancedMode: React.FC<AdvancedModeProps> = ({ config, onChange, ha
     { id: 'libx264', label: 'H.264 / AVC (Software libx264)', group: 'Software' },
     { id: 'libx265', label: 'H.265 / HEVC (Software libx265)', group: 'Software' },
     { id: 'libsvtav1', label: 'AV1 (Software libsvtav1)', group: 'Software' },
+    { id: 'gif', label: 'Animated GIF (Palettegen + Lanczos)', group: 'Image Animation' },
   ];
 
   if (hardware?.hasNvidia) {
