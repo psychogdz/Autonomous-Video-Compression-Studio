@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build Outputs
+dist/
+build/
+out/
+
+# Standalone Large Binaries (keep repository clean)
+bin/*.exe
+bin/*.zip
+
+# Media & Temporary Encoding Files
+temp/
+test_output/
+*.log
+ffmpeg2pass*.log*
+*.mbtree
+
+# Environment & OS
+.env
+.env.local
+.DS_Store
+Thumbs.db
+
+# Test & Coverage
+coverage/
+*.lcov
