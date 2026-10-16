@@ -20,6 +20,16 @@ if not exist "node_modules\" (
     call npm install
 )
 
+echo Checking FFmpeg multimedia engine...
+if not exist "bin\ffmpeg.exe" (
+    where ffmpeg >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo [INFO] FFmpeg not found in bin\ or system PATH.
+        echo Attempting to install FFmpeg automatically via winget...
+        winget install --id Gyan.FFmpeg --accept-source-agreements --accept-package-agreements --silent
+    )
+)
+
 echo Checking build assets...
 if not exist "dist\index.html" (
     echo Building studio frontend and server engine...
