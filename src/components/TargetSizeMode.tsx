@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, Sliders, CheckCircle2 } from 'lucide-react';
+import { Target, Sliders, CheckCircle2, Info } from 'lucide-react';
 import { TargetSizeModeConfig, MediaProbeResult } from '../../shared/types';
 
 interface TargetSizeModeProps {
@@ -12,8 +12,14 @@ export const TargetSizeMode: React.FC<TargetSizeModeProps> = ({ config, onChange
   const sourceMB = Math.round((probe.fileSizeBytes / (1024 * 1024)) * 10) / 10;
   const duration = Math.max(1, probe.durationSeconds);
 
-  // Quick preset chips
-  const quickSizes = [8, 16, 24.5, 50, 100];
+  // Quick preset chips with recognizable platform targets
+  const quickTargets = [
+    { size: 8, label: '8 MB (Discord Basic)' },
+    { size: 16, label: '16 MB (WhatsApp)' },
+    { size: 24.5, label: '25 MB (Discord / Email)' },
+    { size: 50, label: '50 MB (Telegram)' },
+    { size: 100, label: '100 MB (Web Upload)' },
+  ];
 
   // Compute live approximate video bitrate for display
   const targetBits = config.targetSizeMB * 1024 * 1024 * 8;
@@ -42,7 +48,7 @@ export const TargetSizeMode: React.FC<TargetSizeModeProps> = ({ config, onChange
             </div>
             <div>
               <h4 className="text-sm font-bold text-white">Target Output Budget</h4>
-              <p className="text-[11px] text-slate-400">Strictly hit requested file size</p>
+              <p className="text-[11px] text-slate-400">Specify an exact file size limit</p>
             </div>
           </div>
 
@@ -79,22 +85,22 @@ export const TargetSizeMode: React.FC<TargetSizeModeProps> = ({ config, onChange
 
         {/* Quick Presets */}
         <div className="pt-1">
-          <span className="text-[11px] text-slate-400 font-medium block mb-2">Quick Standard Targets:</span>
+          <span className="text-[11px] text-slate-400 font-medium block mb-2">Common Sharing Limits:</span>
           <div className="flex flex-wrap gap-2">
-            {quickSizes.map((size) => {
-              const active = config.targetSizeMB === size;
+            {quickTargets.map((item) => {
+              const active = config.targetSizeMB === item.size;
               return (
                 <button
-                  key={size}
+                  key={item.size}
                   type="button"
-                  onClick={() => onChange({ ...config, targetSizeMB: size })}
+                  onClick={() => onChange({ ...config, targetSizeMB: item.size })}
                   className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border ${
                     active
                       ? 'bg-gradient-to-r from-prism-cyan to-prism-electric text-void-950 border-prism-cyan shadow-glow-cyan'
                       : 'bg-void-950 text-slate-300 border-white/10 hover:border-white/20'
                   }`}
                 >
-                  {size === 24.5 ? '25 MB (Discord / Email)' : `${size} MB`}
+                  {item.label}
                 </button>
               );
             })}
@@ -105,7 +111,7 @@ export const TargetSizeMode: React.FC<TargetSizeModeProps> = ({ config, onChange
       {/* Bitrate & Calculation Telemetry */}
       <div className="p-4 rounded-xl bg-void-900/90 border border-white/[0.08] grid grid-cols-1 sm:grid-cols-2 gap-4 shadow-glass-rim-subtle">
         <div>
-          <span className="text-[11px] text-slate-400 font-medium">Allocated Video Bitrate Budget</span>
+          <span className="text-[11px] text-slate-400 font-medium">Calculated Video Bitrate Budget</span>
           <p className="text-lg font-bold text-prism-mint font-mono mt-0.5">
             {calculatedVideoBitrateKbps} kbps
           </p>

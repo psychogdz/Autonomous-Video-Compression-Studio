@@ -110,8 +110,8 @@ export const App: React.FC = () => {
       return;
     }
 
-    setIsEstimating(true);
     const debounceTimer = setTimeout(() => {
+      setIsEstimating(true);
       fetch('/api/decision', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,7 +132,7 @@ export const App: React.FC = () => {
         })
         .catch(() => {})
         .finally(() => setIsEstimating(false));
-    }, 150);
+    }, 200);
 
     return () => clearTimeout(debounceTimer);
   }, [metadata, activeFilePath, mode, simpleConfig, targetSizeConfig, advancedConfig]);
@@ -448,7 +448,7 @@ export const App: React.FC = () => {
 
             {/* Idle Placeholder when no active encoding or result */}
             {!isEncoding && !result && (
-              <div className="studio-card rounded-2xl p-8 text-center flex flex-col items-center justify-center space-y-4 min-h-[300px] border border-white/[0.06] relative overflow-hidden">
+              <div className="studio-card rounded-2xl p-8 text-center flex flex-col items-center justify-center space-y-4 min-h-[380px] sm:min-h-[420px] border border-white/[0.06] relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-radial from-prism-cyan/[0.04] via-transparent to-transparent pointer-events-none" />
 
                 <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-void-900 border border-white/10 shadow-glass-rim">
