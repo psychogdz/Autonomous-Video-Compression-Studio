@@ -6,14 +6,8 @@ import {
   RotateCcw,
   Sparkles,
   Loader2,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  Eye,
   ChevronLeft,
   ChevronRight,
-  Flame,
-  Info,
 } from 'lucide-react';
 import { QualityScore, CompressionOutcome, MediaProbeResult } from '../../shared/types';
 
@@ -32,12 +26,12 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
   metadata,
   onClose,
 }) => {
-  const [sliderPosition, setSliderPosition] = useState(50); // percentage 0 - 100
+  const [sliderPosition, setSliderPosition] = useState(50); // percentage 0 - 100 in video coordinates
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [zoomLevel, setZoomLevel] = useState<1 | 2 | 4>(1);
-  const [isDifferenceMode, setIsDifferenceMode] = useState(false);
+
   const [qualityScore, setQualityScore] = useState<QualityScore | null>(null);
   const [isCalculatingQuality, setIsCalculatingQuality] = useState(false);
 
@@ -66,7 +60,6 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
       compressedVideoRef.current.pause();
       setIsPlaying(false);
     } else {
-      // Re-align before starting
       compressedVideoRef.current.currentTime = originalVideoRef.current.currentTime;
       originalVideoRef.current.play();
       compressedVideoRef.current.play();
@@ -88,7 +81,7 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
       compressedVideoRef.current.pause();
       setIsPlaying(false);
     }
-    const frameDuration = 1 / 30; // standard 30fps step
+    const frameDuration = 1 / 30;
     const target = Math.max(0, Math.min(duration || 100, originalVideoRef.current.currentTime + frames * frameDuration));
     originalVideoRef.current.currentTime = target;
     compressedVideoRef.current.currentTime = target;
@@ -100,7 +93,6 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
       const cur = originalVideoRef.current.currentTime;
       setCurrentTime(cur);
 
-      // Auto-resync if drift exceeds 0.08s
       if (compressedVideoRef.current && Math.abs(compressedVideoRef.current.currentTime - cur) > 0.08) {
         compressedVideoRef.current.currentTime = cur;
       }
@@ -111,31 +103,30 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
     }
   };
 
-  // Draggable Split Divider
+  // Draggable Split Divider locked directly to zoom coordinate space
   const updateSliderFromClientX = useCallback((clientX: number) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const percent = Math.max(2, Math.min(98, (x / rect.width) * 100));
-    setSliderPosition(percent);
-  }, []);
+    const W = rect.width;
+    // Calculate raw mouse displacement from center of container
+    const rawOffsetFromCenter = (clientX - rect.left) - (W / 2);
+    // When zoomed, divide displacement by zoom level so divider handle stays locked 1:1 with mouse cursor
+    const unscaledOffset = rawOffsetFromCenter / zoomLevel;
+    const percent = 50 + (unscaledOffset / W) * 100;
+    setSliderPosition(Math.max(2, Math.min(98, percent)));
+  }, [zoomLevel]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (isDifferenceMode) return;
     isDraggingRef.current = true;
     updateSliderFromClientX(e.clientX);
   };
 
-  const handleMouseUp = () => {
-    isDraggingRef.current = false;
-  };
-
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current || isDifferenceMode) return;
+    if (!isDraggingRef.current) return;
     updateSliderFromClientX(e.clientX);
   };
 
-  // Compute SSIM and PSNR
+  // Compute SSIM and PSNR via FFmpeg
   const handleCalculateQuality = async () => {
     setIsCalculatingQuality(true);
     try {
@@ -147,7 +138,7 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
       const data = await res.json();
       setQualityScore(data);
     } catch {
-      // Ignore score error
+      // Ignore
     } finally {
       setIsCalculatingQuality(false);
     }
@@ -176,6 +167,7 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             {/* Zoom Controls */}
             <div className="flex items-center space-x-1 p-0.5 rounded-xl bg-void-900 border border-white/10 text-xs font-mono">
+              <span className="text-[10px] text-slate-400 pl-2 pr-1 font-sans">Zoom:</span>
               {([1, 2, 4] as const).map((z) => (
                 <button
                   key={z}
@@ -191,20 +183,6 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
                 </button>
               ))}
             </div>
-
-            {/* Difference Map Toggle */}
-            <button
-              onClick={() => setIsDifferenceMode(!isDifferenceMode)}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
-                isDifferenceMode
-                  ? 'bg-prism-magenta text-white border-prism-magenta shadow-[0_0_15px_#FF2A85]'
-                  : 'bg-void-900 text-slate-300 border-white/10 hover:border-white/20'
-              }`}
-              title="Mathematically subtracts both video frames: Identical pixels stay black, altered pixels glow brightly"
-            >
-              <Flame className="w-3.5 h-3.5 text-white" />
-              <span>{isDifferenceMode ? 'Difference Map: ON' : 'Show Difference Map'}</span>
-            </button>
 
             {/* Quality Score Trigger / Readout */}
             {!qualityScore && !isGifOutput ? (
@@ -256,13 +234,11 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
           ref={containerRef}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
-          className={`relative flex-1 min-h-[380px] sm:min-h-[480px] bg-black select-none overflow-hidden ${
-            isDifferenceMode ? 'cursor-default' : 'cursor-ew-resize'
-          }`}
+          className="relative flex-1 min-h-[380px] sm:min-h-[480px] bg-black select-none overflow-hidden cursor-ew-resize"
         >
-          {/* Zoom Wrapper */}
+          {/* Zoom Wrapper - Everything inside scales together with origin: center */}
           <div
-            className="absolute inset-0 transition-transform duration-200 origin-center pointer-events-none"
+            className="absolute inset-0 origin-center pointer-events-none transition-transform duration-200"
             style={{ transform: `scale(${zoomLevel})` }}
           >
             {/* Stream 1: Compressed Video (Underneath Layer) */}
@@ -282,107 +258,64 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
               />
             )}
 
-            {/* Stream 2: Original Video */}
+            {/* Stream 2: Original Video (Clipped to left side of slider) */}
             <video
               ref={originalVideoRef}
               src={originalUrl}
               onTimeUpdate={handleTimeUpdate}
               className="absolute inset-0 w-full h-full object-contain"
-              style={
-                isDifferenceMode
-                  ? {
-                      // In Difference Mode, blend with compressed video mathematically across the entire frame
-                      mixBlendMode: 'difference',
-                    }
-                  : {
-                      // In Normal Mode, reveal original on the left side of the slider
-                      clipPath: `inset(0 ${100 - sliderPosition}% 0 0)`,
-                    }
-              }
+              style={{
+                clipPath: `inset(0 ${100 - sliderPosition}% 0 0)`,
+              }}
               muted
               playsInline
             />
 
-            {/* Amplified Delta Heatmap Filter (Only active in Difference Mode) */}
-            {isDifferenceMode && (
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  backdropFilter: 'contrast(1800%) brightness(600%) saturate(200%)',
-                  WebkitBackdropFilter: 'contrast(1800%) brightness(600%) saturate(200%)',
-                }}
-              />
-            )}
-          </div>
-
-          {/* Draggable Divider Handle Line (Only visible in Normal Mode) */}
-          {!isDifferenceMode && (
+            {/* Divider Seam Line - INSIDE Zoom Wrapper so it ALWAYS sits directly on the video's cut line */}
             <div
-              className="absolute top-0 bottom-0 w-[2px] bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)] z-30 cursor-ew-resize flex items-center justify-center -ml-[1px] pointer-events-none"
-              style={{ left: `${sliderPosition}%` }}
+              className="absolute top-0 bottom-0 z-30 cursor-ew-resize flex items-center justify-center -ml-[1px] pointer-events-auto"
+              style={{ left: `${sliderPosition}%`, width: `${2 / zoomLevel}px` }}
             >
-              <div className="w-8 h-8 rounded-full bg-void-950 border-2 border-white shadow-[0_0_16px_#00D2FF] flex items-center justify-center text-prism-cyan text-xs font-bold pointer-events-auto cursor-ew-resize">
+              {/* Vertical line matching zoom resolution */}
+              <div
+                className="w-full h-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.9)]"
+              />
+
+              {/* Seam Handle Icon - Counter-scaled so it stays crisp at all zoom levels */}
+              <div
+                className="absolute w-8 h-8 rounded-full bg-void-950 border-2 border-white shadow-[0_0_16px_#00D2FF] flex items-center justify-center text-prism-cyan text-xs font-bold cursor-ew-resize"
+                style={{ transform: `scale(${1 / zoomLevel})` }}
+              >
                 ⬌
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Dynamic Badges depending on Difference Mode */}
-          {isDifferenceMode ? (
-            <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
-              <div className="px-3.5 py-1.5 rounded-xl bg-void-950/90 backdrop-blur-md border border-prism-magenta/50 text-xs font-mono font-bold text-prism-magenta shadow-xl space-y-0.5">
-                <div className="flex items-center space-x-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-prism-magenta shadow-[0_0_8px_#FF2A85]" />
-                  <span>COMPRESSION RESIDUAL HEATMAP (18x AMPLIFIED)</span>
-                </div>
-                <p className="text-[10px] text-slate-300 font-normal">
-                  Black = Bit-identical pixels • Glowing pixels = Compression alterations
-                </p>
+          {/* Left Stream Badge (Always Original Source) */}
+          <div className="absolute top-4 left-4 z-20 pointer-events-none">
+            <div className="px-3.5 py-1.5 rounded-xl bg-void-950/85 backdrop-blur-md border border-white/20 text-xs font-mono font-bold text-white shadow-xl space-y-0.5">
+              <div className="flex items-center space-x-1.5">
+                <span className="w-2 h-2 rounded-full bg-slate-400" />
+                <span>ORIGINAL SOURCE</span>
               </div>
-
-              <div className="px-3 py-1.5 rounded-xl bg-void-950/80 backdrop-blur-md border border-white/20 text-xs font-mono text-slate-300">
-                {result ? `${formatBytes(result.compressedSizeBytes)} (${result.actualVideoCodec.toUpperCase()})` : ''}
-              </div>
+              <p className="text-[10px] text-slate-300 font-normal">
+                {result ? formatBytes(result.originalSizeBytes) : formatBytes(metadata?.fileSizeBytes)} • {metadata?.primaryVideo?.codecName?.toUpperCase() || 'SOURCE'} {metadata?.primaryVideo ? `(${metadata.primaryVideo.width}x${metadata.primaryVideo.height})` : ''}
+              </p>
             </div>
-          ) : (
-            <>
-              {/* Left Stream Badge (Original) */}
-              <div className="absolute top-4 left-4 z-20 pointer-events-none">
-                <div className="px-3 py-1.5 rounded-xl bg-void-950/85 backdrop-blur-md border border-white/20 text-xs font-mono font-bold text-white shadow-xl space-y-0.5">
-                  <div className="flex items-center space-x-1.5">
-                    <span className="w-2 h-2 rounded-full bg-slate-400" />
-                    <span>ORIGINAL SOURCE</span>
-                  </div>
-                  <p className="text-[10px] text-slate-300 font-normal">
-                    {result ? formatBytes(result.originalSizeBytes) : formatBytes(metadata?.fileSizeBytes)} • {metadata?.primaryVideo?.codecName?.toUpperCase() || 'SOURCE'}
-                  </p>
-                </div>
-              </div>
+          </div>
 
-              {/* Right Stream Badge (Compressed) */}
-              <div className="absolute top-4 right-4 z-20 pointer-events-none">
-                <div className="px-3 py-1.5 rounded-xl bg-void-950/85 backdrop-blur-md border border-prism-cyan/50 text-xs font-mono font-bold text-prism-cyan shadow-xl space-y-0.5 text-right">
-                  <div className="flex items-center justify-end space-x-1.5">
-                    <span>COMPRESSED OUTPUT</span>
-                    <span className="w-2 h-2 rounded-full bg-prism-cyan shadow-[0_0_8px_#00D2FF]" />
-                  </div>
-                  <p className="text-[10px] text-slate-300 font-normal">
-                    {result ? `${formatBytes(result.compressedSizeBytes)} (-${result.savedPercent}%)` : 'COMPRESSED'} • {result?.actualVideoCodec?.toUpperCase() || 'OPTIMIZED'}
-                  </p>
-                </div>
+          {/* Right Stream Badge (Compressed Output) */}
+          <div className="absolute top-4 right-4 z-20 pointer-events-none">
+            <div className="px-3.5 py-1.5 rounded-xl bg-void-950/85 backdrop-blur-md border border-prism-cyan/50 text-xs font-mono font-bold text-prism-cyan shadow-xl space-y-0.5 text-right">
+              <div className="flex items-center justify-end space-x-1.5">
+                <span>COMPRESSED OUTPUT</span>
+                <span className="w-2 h-2 rounded-full bg-prism-cyan shadow-[0_0_8px_#00D2FF]" />
               </div>
-            </>
-          )}
-
-          {/* Helpful Difference Mode Bottom Banner */}
-          {isDifferenceMode && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-              <div className="px-4 py-1.5 rounded-full bg-void-950/90 backdrop-blur-md border border-prism-magenta/40 text-[11px] font-sans text-slate-300 shadow-xl flex items-center space-x-2">
-                <Info className="w-3.5 h-3.5 text-prism-magenta" />
-                <span>If a frame is 100% black, the compression is mathematically lossless on those pixels.</span>
-              </div>
+              <p className="text-[10px] text-slate-300 font-normal">
+                {result ? `${formatBytes(result.compressedSizeBytes)} (-${result.savedPercent}%)` : 'COMPRESSED'} • {result?.actualVideoCodec?.toUpperCase() || 'OPTIMIZED'}
+              </p>
             </div>
-          )}
+          </div>
         </div>
 
         {/* 3. Player Controls Bar */}
