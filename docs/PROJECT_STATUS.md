@@ -1,13 +1,13 @@
 # PROJECT STATUS — LuminaPress Video Studio
-## Version 1.2.0 — Production Ready, Hardware Verified & Precision Inspector
+## Version 1.2.1 — Production Ready, English UI Consistency & Streamlined Queue
 
 ---
 
 ### Executive Status Summary
-- **Current Milestone:** Version 1.2.0 Completed (Precise Zoom Split Seam Alignment, Hardware GPU Detection, Stable Deck Layouts, 17/17 tests passing).
+- **Current Milestone:** Version 1.2.1 Completed (Full English Copywriting Consistency, Streamlined Batch Queue, Pan Canvas Navigation, 17/17 tests passing).
 - **Architecture Integrity:** 100% decoupled client-server architecture with Node.js Express backend, native FFmpeg/FFprobe child processes, SSE telemetry streaming, and Vite + React 19 studio interface.
 - **Hardware Integration:** Dedicated GPU identification (`NVIDIA GeForce GTX 1650 (GPU)` via Windows MediaFoundation & multi-threaded CPU fallback).
-- **Inspector Precision:** Sub-pixel split-seam alignment at 1x, 2x, and 4x zoom levels. Mouse cursor, divider handle, and video clip seam remain 100% locked together.
+- **Inspector Precision:** 1x, 2x, 4x Zoom with mouse-drag and directional panning. SSIM & PSNR scientific explanation cards in professional English.
 - **Test Suite Status:** 17 / 17 automated tests passing in Vitest.
 
 ---

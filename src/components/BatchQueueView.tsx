@@ -33,7 +33,6 @@ interface BatchQueueViewProps {
   onRetryJob?: (id: string) => void;
   onMoveJob?: (id: string, direction: 'up' | 'down') => void;
   onUpdateJobConfig?: (id: string, config: CompressionJobConfig) => void;
-  onAddFiles?: (filePaths: string[]) => void;
   onRevealFolder: (path: string) => void;
 }
 
@@ -49,13 +48,8 @@ export const BatchQueueView: React.FC<BatchQueueViewProps> = ({
   onRetryJob,
   onMoveJob,
   onUpdateJobConfig,
-  onAddFiles,
   onRevealFolder,
 }) => {
-  const [showAddPath, setShowAddPath] = useState(false);
-  const [newPathInput, setNewPathInput] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   if (!isOpen) return null;
 
   const hasRunning = queue.some((j) => j.status === 'encoding');
@@ -67,36 +61,6 @@ export const BatchQueueView: React.FC<BatchQueueViewProps> = ({
     const units = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
-  };
-
-  const handleAddPathSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPathInput.trim() && onAddFiles) {
-      onAddFiles([newPathInput.trim()]);
-      setNewPathInput('');
-      setShowAddPath(false);
-    }
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0 && onAddFiles) {
-      // In web context, multiple files can be uploaded
-      const files = Array.from(e.target.files);
-      // For each file, upload via formData
-      files.forEach(async (file) => {
-        const formData = new FormData();
-        formData.append('video', file);
-        try {
-          const res = await fetch('/api/upload', { method: 'POST', body: formData });
-          const data = await res.json();
-          if (data.filePath) {
-            onAddFiles([data.filePath]);
-          }
-        } catch {
-          // Ignore
-        }
-      });
-    }
   };
 
   const goalOptions: Array<{ id: SimpleGoal; label: string }> = [
@@ -130,24 +94,6 @@ export const BatchQueueView: React.FC<BatchQueueViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Add File Trigger */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="video/*,image/gif,.mp4,.mov,.mkv,.webm,.avi,.flv,.ts,.gif"
-              className="hidden"
-              onChange={handleFileInputChange}
-            />
-            <button
-              onClick={() => setShowAddPath(!showAddPath)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-void-850 hover:bg-void-800 border border-white/10 text-xs font-semibold text-slate-200 transition-all shadow-glass-rim-subtle"
-              title="Add more videos to queue"
-            >
-              <Plus className="w-3.5 h-3.5 text-prism-cyan" />
-              <span>Add Item</span>
-            </button>
-
             {/* Start / Pause Queue */}
             {hasRunning ? (
               <button
@@ -190,37 +136,7 @@ export const BatchQueueView: React.FC<BatchQueueViewProps> = ({
           </div>
         </div>
 
-        {/* 2. Direct Add Path Drawer */}
-        {showAddPath && (
-          <div className="p-3.5 bg-void-950/90 border-b border-white/[0.08] flex flex-wrap items-center justify-between gap-3 animate-fade-in">
-            <form onSubmit={handleAddPathSubmit} className="flex-1 flex items-center space-x-2 min-w-[280px]">
-              <input
-                type="text"
-                value={newPathInput}
-                onChange={(e) => setNewPathInput(e.target.value)}
-                placeholder="Enter host video path, e.g. C:\Videos\clip.mp4"
-                className="flex-1 bg-void-900 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-prism-cyan font-mono"
-              />
-              <button
-                type="submit"
-                disabled={!newPathInput.trim()}
-                className="px-3.5 py-2 rounded-xl bg-prism-cyan text-void-950 text-xs font-bold hover:opacity-95 disabled:opacity-40"
-              >
-                Add Path
-              </button>
-            </form>
-
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="px-3.5 py-2 rounded-xl bg-void-850 hover:bg-void-800 border border-white/10 text-xs font-semibold text-slate-200 transition-colors"
-            >
-              Browse Files
-            </button>
-          </div>
-        )}
-
-        {/* 3. Queue Items List */}
+        {/* 2. Queue Items List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {queue.length === 0 ? (
             <div className="text-center py-16 text-slate-400 text-sm flex flex-col items-center justify-center space-y-3">

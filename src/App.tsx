@@ -533,24 +533,6 @@ export const App: React.FC = () => {
             body: JSON.stringify({ config: newConfig }),
           });
         }}
-        onAddFiles={(filePaths) => {
-          filePaths.forEach((fp) => {
-            fetch('/api/queue/add', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                filePath: fp,
-                config: {
-                  sourceFilePath: fp,
-                  mode,
-                  simpleConfig,
-                  targetSizeConfig,
-                  advancedConfig,
-                },
-              }),
-            });
-          });
-        }}
         onRevealFolder={handleRevealFolder}
       />
     </div>

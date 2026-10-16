@@ -220,17 +220,17 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
   }, []);
 
   const getQualityVerdict = (ssim?: number, psnr?: number) => {
-    if (!ssim) return 'Measured High Quality';
+    if (!ssim) return 'High Fidelity';
     if (ssim >= 0.985 && (psnr || 0) >= 42) {
-      return 'Studio Master (غیرقابل تشخیص از فایل اصلی)';
+      return 'Studio Master (Visually Indistinguishable from Source)';
     }
     if (ssim >= 0.96) {
-      return 'Broadcast Fidelity (کیفیت استاندارد پخش استودیویی)';
+      return 'Broadcast Fidelity (Studio Broadcast Standard)';
     }
     if (ssim >= 0.92) {
-      return 'High Efficiency (کیفیت بسیار خوب با فشردگی بالا)';
+      return 'High Efficiency (Good Visual Quality, High Compression)';
     }
-    return 'Noticeable Compression (فشرده‌سازی با افت جزئی جزئیات)';
+    return 'Noticeable Compression (Minor Visual Tradeoffs)';
   };
 
   return (
@@ -363,11 +363,11 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
               <div className="flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 text-prism-mint shrink-0" />
                 <span className="text-xs font-bold text-white tracking-wide">
-                  تحلیل کیفیت بصری علمی (Scientific Fidelity Analysis)
+                  Scientific Visual Quality Analysis
                 </span>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-sans font-bold bg-prism-mint/20 text-prism-mint border border-prism-mint/40">
-                رتبه کیفی: {getQualityVerdict(qualityScore.ssim, qualityScore.psnr)}
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-prism-mint/20 text-prism-mint border border-prism-mint/40">
+                Grade: {getQualityVerdict(qualityScore.ssim, qualityScore.psnr)}
               </span>
             </div>
 
@@ -379,11 +379,11 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
                     SSIM = {qualityScore.ssim} / 1.000
                   </span>
                   <span className="text-[10px] font-mono text-slate-300 px-1.5 py-0.2 rounded bg-prism-mint/10">
-                    تشابه ساختاری تصویر
+                    Structural Similarity
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed pt-0.5">
-                  معیار SSIM نشان‌دهنده دقت شباهت نور، کنتراست و بافت‌های پیکسلی از زاویه دید چشم انسان است. عدد <strong className="text-white font-mono">{qualityScore.ssim}</strong> یعنی بیش از <strong className="text-prism-mint font-mono">{((qualityScore.ssim || 0) * 100).toFixed(1)}٪</strong> فریم‌های ویدئو با نسخه اصلی مو نمی‌زنند. (استاندارد عالی: بالای ۰.۹۵).
+                  SSIM measures luminance, contrast, and structure preservation modeled on the human visual system. A score of <strong className="text-white font-mono">{qualityScore.ssim}</strong> confirms that over <strong className="text-prism-mint font-mono">{((qualityScore.ssim || 0) * 100).toFixed(1)}%</strong> of perceived details are structurally identical to the uncompressed source (broadcast standard: ≥ 0.95).
                 </p>
               </div>
 
@@ -394,11 +394,11 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
                     PSNR = {qualityScore.psnr} dB
                   </span>
                   <span className="text-[10px] font-mono text-slate-300 px-1.5 py-0.2 rounded bg-prism-cyan/10">
-                    نسبت سیگنال به نویز
+                    Signal-to-Noise Ratio
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed pt-0.5">
-                  شاخص PSNR خلوص تصویر را بر حسب دسی‌بل اندازه می‌گیرد. استاندارد کیفیت پخش تلویزیونی ۳۵ تا ۴۰ دسی‌بل است؛ عدد <strong className="text-white font-mono">{qualityScore.psnr} dB</strong> خلوص سطح استودیو را تضمین می‌کند و نویز فشرده‌سازی در آن عملاً صفر است.
+                  PSNR quantifies mathematical reconstruction fidelity in decibels (dB). Broadcast industry benchmark is 35–40 dB; a value of <strong className="text-white font-mono">{qualityScore.psnr} dB</strong> certifies studio master grade with virtually zero perceptible compression noise.
                 </p>
               </div>
             </div>
@@ -501,7 +501,7 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
               <div className="px-3.5 py-1 rounded-full bg-void-950/90 backdrop-blur-md border border-prism-cyan/40 text-[11px] font-sans text-slate-300 shadow-xl flex items-center space-x-2">
                 <Move className="w-3.5 h-3.5 text-prism-cyan animate-pulse" />
-                <span>کلیک و درگ روی ویدئو برای حرکت به اطراف (Pan Viewport) • بزرگ‌نمایی: {zoomLevel}x</span>
+                <span>Click & drag canvas to pan viewport • Zoom: {zoomLevel}x</span>
               </div>
             </div>
           )}

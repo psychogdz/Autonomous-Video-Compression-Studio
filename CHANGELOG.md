@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] - 2026-10-17
+### Changed & Improved
+- **Video Inspector English Consistency:** Converted all SSIM and PSNR technical explanations, fidelity rating badges, and viewport panning hints to clean, studio-grade English.
+- **Batch Processing Queue Simplification:** Streamlined modal toolbar by removing redundant inline file adder in favor of the primary studio workspace selector.
+- **Zoom Panning:** Added mouse-drag canvas panning and directional navigation controls (4 directions + Center reset) when zoomed in 2x or 4x.
+- **Queue Transparency:** Live real-time SSE stream (`/api/queue/stream`), completed job output paths, and native "Open Folder" action.
+- **Storage Isolation:** Dedicated permanent `outputs/` directory separated from `temp/uploads/`.
+- **Hardware Telemetry:** Direct detection of user GPU model (`NVIDIA GeForce GTX 1650 (GPU)`).
+
+---
+
 ## [1.1.0] - 2026-10-16
 ### Added
 - **Full Animated GIF Input & Output Support:**
