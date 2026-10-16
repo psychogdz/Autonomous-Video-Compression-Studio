@@ -17,11 +17,16 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-echo "Starting LuminaPress Video Studio..."
+if [ ! -f "dist/index.html" ] || [ ! -f "dist-server/server/src/index.js" ]; then
+    echo "Building studio frontend and server engine..."
+    npm run build
+fi
+
+echo "Starting LuminaPress Video Studio on http://localhost:3001..."
 if command -v open &> /dev/null; then
     open http://localhost:3001 &
 elif command -v xdg-open &> /dev/null; then
     xdg-open http://localhost:3001 &
 fi
 
-npm start
+node dist-server/server/src/index.js

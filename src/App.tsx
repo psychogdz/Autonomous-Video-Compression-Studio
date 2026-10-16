@@ -232,6 +232,7 @@ export const App: React.FC = () => {
       // Connect to Server-Sent Events (SSE) telemetry stream
       const sse = new EventSource(`/api/compress/${jobId}/progress`);
       eventSourceRef.current = sse;
+      let hasCompleted = false;
 
       sse.addEventListener('progress', (e) => {
         const prog: ProgressType = JSON.parse(e.data);
@@ -239,6 +240,7 @@ export const App: React.FC = () => {
       });
 
       sse.addEventListener('complete', (e) => {
+        hasCompleted = true;
         const outcome: CompressionOutcome = JSON.parse(e.data);
         setResult(outcome);
         setIsEncoding(false);
@@ -246,17 +248,27 @@ export const App: React.FC = () => {
         sse.close();
       });
 
-      sse.addEventListener('error', (e: any) => {
-        try {
-          const errData = JSON.parse(e.data || '{}');
-          setErrorBanner(errData.message || 'Compression process encountered an error');
-        } catch {
-          // SSE closed or connection error
+      sse.addEventListener('job_error', (e: any) => {
+        if (!hasCompleted) {
+          try {
+            const errData = JSON.parse(e.data || '{}');
+            setErrorBanner(errData.message || 'Compression process encountered an error');
+          } catch {
+            setErrorBanner('Compression process encountered an error');
+          }
+          setIsEncoding(false);
+          setActiveJobId(null);
         }
-        setIsEncoding(false);
-        setActiveJobId(null);
         sse.close();
       });
+
+      sse.onerror = () => {
+        // Only report connection error if the job has not completed and is still encoding
+        if (!hasCompleted) {
+          // SSE connection dropped before completion
+          sse.close();
+        }
+      };
     } catch (err: any) {
       setErrorBanner(err.message || 'Failed to initialize compression job');
       setIsEncoding(false);

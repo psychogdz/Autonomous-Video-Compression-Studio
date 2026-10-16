@@ -138,7 +138,7 @@ app.post('/api/compress', async (req: Request, res: Response) => {
 });
 
 // 7. Server-Sent Events (SSE) for Real-Time Telemetry
-app.get('/api/compress/:jobId/progress', (req: Request, res: Response) => {
+app.get('/api/compress/:jobId/progress', async (req: Request, res: Response) => {
   const { jobId } = req.params;
 
   res.setHeader('Content-Type', 'text/event-stream');
@@ -146,9 +146,18 @@ app.get('/api/compress/:jobId/progress', (req: Request, res: Response) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  const job = getActiveJob(jobId);
+  let job = getActiveJob(jobId);
   if (!job) {
-    res.write(`event: error\ndata: ${JSON.stringify({ message: 'Job not found or already closed' })}\n\n`);
+    // Wait up to 5 seconds in case the client connected before child process initialization
+    for (let i = 0; i < 50; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      job = getActiveJob(jobId);
+      if (job) break;
+    }
+  }
+
+  if (!job) {
+    res.write(`event: job_error\ndata: ${JSON.stringify({ message: 'Job not found or already closed' })}\n\n`);
     return res.end();
   }
 
@@ -158,7 +167,7 @@ app.get('/api/compress/:jobId/progress', (req: Request, res: Response) => {
   }
 
   if (job.status === 'failed') {
-    res.write(`event: error\ndata: ${JSON.stringify({ message: job.error || 'Job failed' })}\n\n`);
+    res.write(`event: job_error\ndata: ${JSON.stringify({ message: job.error || 'Job failed' })}\n\n`);
     return res.end();
   }
 
@@ -175,7 +184,7 @@ app.get('/api/compress/:jobId/progress', (req: Request, res: Response) => {
   };
 
   const errorHandler = (err: Error) => {
-    res.write(`event: error\ndata: ${JSON.stringify({ message: err.message })}\n\n`);
+    res.write(`event: job_error\ndata: ${JSON.stringify({ message: err.message })}\n\n`);
     res.end();
   };
 

@@ -11,7 +11,7 @@
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
     "build:server": "tsc -p server/tsconfig.json",
-    "start": "node dist-server/index.js",
+    "start": "node dist-server/server/src/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "tsx tests/e2eCompression.ts"

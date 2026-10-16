@@ -20,6 +20,16 @@ if not exist "node_modules\" (
     call npm install
 )
 
-echo Starting LuminaPress Video Studio...
-start http://localhost:3001
-call npm start
+echo Checking build assets...
+if not exist "dist\index.html" (
+    echo Building studio frontend and server engine...
+    call npm run build
+) else if not exist "dist-server\server\src\index.js" (
+    echo Building studio frontend and server engine...
+    call npm run build
+)
+
+echo Starting LuminaPress Video Studio on http://localhost:3001...
+start "" http://localhost:3001
+node dist-server/server/src/index.js
+pause
