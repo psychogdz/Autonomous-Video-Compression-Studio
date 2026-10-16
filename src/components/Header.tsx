@@ -15,13 +15,15 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenQueue,
   ffmpegVersion,
 }) => {
-  const hasGpu = hardware?.hasNvidia || hardware?.hasIntel || hardware?.hasAmd;
+  const hasGpu = Boolean(hardware?.hasNvidia || hardware?.hasIntel || hardware?.hasAmd || hardware?.hasMf);
   const gpuName = hardware?.hasNvidia
     ? 'NVIDIA NVENC'
     : hardware?.hasIntel
     ? 'Intel QuickSync'
     : hardware?.hasAmd
     ? 'AMD AMF'
+    : hardware?.hasMf
+    ? (hardware?.gpuModel ? `${hardware.gpuModel} (GPU)` : 'Windows GPU')
     : 'Multi-Core CPU';
 
   return (

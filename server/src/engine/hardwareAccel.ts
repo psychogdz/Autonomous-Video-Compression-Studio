@@ -1,11 +1,26 @@
-import { execFile } from 'child_process';
+import { execFile, exec } from 'child_process';
 import { promisify } from 'util';
 import { locateBinaries } from './binaryLocator.js';
 import { HardwareStatus, HardwareEncoderSupport } from '../../../shared/types.js';
 
 const execFileAsync = promisify(execFile);
+const execAsync = promisify(exec);
 
 let cachedHardwareStatus: HardwareStatus | null = null;
+
+async function getGpuModel(): Promise<string | undefined> {
+  if (process.platform === 'win32') {
+    try {
+      const { stdout } = await execAsync('powershell -NoProfile -Command "(Get-CimInstance Win32_VideoController).Name"');
+      const lines = stdout.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const dedicated = lines.find(l => !l.toLowerCase().includes('basic') && !l.toLowerCase().includes('virtual'));
+      if (dedicated) return dedicated;
+    } catch {
+      // Fallback
+    }
+  }
+  return undefined;
+}
 
 /**
  * Actively checks if an encoder can initialize on this specific hardware and driver.
@@ -41,6 +56,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareStatus> {
   }
 
   const { ffmpegPath } = await locateBinaries();
+  const gpuModel = await getGpuModel();
 
   let encodersOutput = '';
   try {
@@ -73,8 +89,8 @@ export async function detectHardwareCapabilities(): Promise<HardwareStatus> {
     { id: 'h264_amf', name: 'AMD AMF H.264', codec: 'h264', type: 'amf' },
     { id: 'hevc_amf', name: 'AMD AMF HEVC', codec: 'hevc', type: 'amf' },
     { id: 'av1_amf', name: 'AMD AMF AV1', codec: 'av1', type: 'amf' },
-    // Windows MediaFoundation
-    { id: 'h264_mf', name: 'MediaFoundation H.264 (Windows GPU)', codec: 'h264', type: 'mf' },
+    // Windows MediaFoundation (DirectX Hardware MFT)
+    { id: 'h264_mf', name: 'Windows GPU (MediaFoundation)', codec: 'h264', type: 'mf' },
     // CPU fallback
     { id: 'libx264', name: 'x264 (Software CPU)', codec: 'h264', type: 'cpu' },
     { id: 'libx265', name: 'x265 (Software CPU)', codec: 'hevc', type: 'cpu' },
@@ -122,6 +138,8 @@ export async function detectHardwareCapabilities(): Promise<HardwareStatus> {
     hasNvidia,
     hasIntel,
     hasAmd,
+    hasMf,
+    gpuModel,
     encoders,
     recommendedH264,
     recommendedHEVC,

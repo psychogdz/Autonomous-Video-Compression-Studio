@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Flame,
+  Info,
 } from 'lucide-react';
 import { QualityScore, CompressionOutcome, MediaProbeResult } from '../../shared/types';
 
@@ -120,6 +121,7 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (isDifferenceMode) return;
     isDraggingRef.current = true;
     updateSliderFromClientX(e.clientX);
   };
@@ -129,7 +131,7 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current) return;
+    if (!isDraggingRef.current || isDifferenceMode) return;
     updateSliderFromClientX(e.clientX);
   };
 
@@ -195,13 +197,13 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
               onClick={() => setIsDifferenceMode(!isDifferenceMode)}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
                 isDifferenceMode
-                  ? 'bg-prism-magenta text-white border-prism-magenta shadow-[0_0_12px_#FF2A85]'
+                  ? 'bg-prism-magenta text-white border-prism-magenta shadow-[0_0_15px_#FF2A85]'
                   : 'bg-void-900 text-slate-300 border-white/10 hover:border-white/20'
               }`}
-              title="Highlight compression differences with visual delta map"
+              title="Mathematically subtracts both video frames: Identical pixels stay black, altered pixels glow brightly"
             >
-              <Flame className="w-3.5 h-3.5" />
-              <span>{isDifferenceMode ? 'Difference Map: ON' : 'Show Differences'}</span>
+              <Flame className="w-3.5 h-3.5 text-white" />
+              <span>{isDifferenceMode ? 'Difference Map: ON' : 'Show Difference Map'}</span>
             </button>
 
             {/* Quality Score Trigger / Readout */}
@@ -254,7 +256,9 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
           ref={containerRef}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
-          className="relative flex-1 min-h-[380px] sm:min-h-[480px] bg-black select-none overflow-hidden cursor-ew-resize"
+          className={`relative flex-1 min-h-[380px] sm:min-h-[480px] bg-black select-none overflow-hidden ${
+            isDifferenceMode ? 'cursor-default' : 'cursor-ew-resize'
+          }`}
         >
           {/* Zoom Wrapper */}
           <div
@@ -278,57 +282,107 @@ export const VideoCompareModal: React.FC<VideoCompareModalProps> = ({
               />
             )}
 
-            {/* Stream 2: Original Video (Top Layer with CSS clip-path for 100% exact alignment) */}
+            {/* Stream 2: Original Video */}
             <video
               ref={originalVideoRef}
               src={originalUrl}
               onTimeUpdate={handleTimeUpdate}
               className="absolute inset-0 w-full h-full object-contain"
-              style={{
-                clipPath: `inset(0 ${100 - sliderPosition}% 0 0)`,
-                mixBlendMode: isDifferenceMode ? 'difference' : 'normal',
-                filter: isDifferenceMode ? 'contrast(300%) invert(100%)' : 'none',
-              }}
+              style={
+                isDifferenceMode
+                  ? {
+                      // In Difference Mode, blend with compressed video mathematically across the entire frame
+                      mixBlendMode: 'difference',
+                    }
+                  : {
+                      // In Normal Mode, reveal original on the left side of the slider
+                      clipPath: `inset(0 ${100 - sliderPosition}% 0 0)`,
+                    }
+              }
               muted
               playsInline
             />
+
+            {/* Amplified Delta Heatmap Filter (Only active in Difference Mode) */}
+            {isDifferenceMode && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  backdropFilter: 'contrast(1800%) brightness(600%) saturate(200%)',
+                  WebkitBackdropFilter: 'contrast(1800%) brightness(600%) saturate(200%)',
+                }}
+              />
+            )}
           </div>
 
-          {/* Draggable Divider Handle Line */}
-          <div
-            className="absolute top-0 bottom-0 w-[2px] bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)] z-30 cursor-ew-resize flex items-center justify-center -ml-[1px] pointer-events-none"
-            style={{ left: `${sliderPosition}%` }}
-          >
-            <div className="w-8 h-8 rounded-full bg-void-950 border-2 border-white shadow-[0_0_16px_#00D2FF] flex items-center justify-center text-prism-cyan text-xs font-bold pointer-events-auto cursor-ew-resize">
-              ⬌
-            </div>
-          </div>
-
-          {/* Left Stream Badge (Original) */}
-          <div className="absolute top-4 left-4 z-20 pointer-events-none">
-            <div className="px-3 py-1.5 rounded-xl bg-void-950/85 backdrop-blur-md border border-white/20 text-xs font-mono font-bold text-white shadow-xl space-y-0.5">
-              <div className="flex items-center space-x-1.5">
-                <span className="w-2 h-2 rounded-full bg-slate-400" />
-                <span>ORIGINAL SOURCE</span>
+          {/* Draggable Divider Handle Line (Only visible in Normal Mode) */}
+          {!isDifferenceMode && (
+            <div
+              className="absolute top-0 bottom-0 w-[2px] bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)] z-30 cursor-ew-resize flex items-center justify-center -ml-[1px] pointer-events-none"
+              style={{ left: `${sliderPosition}%` }}
+            >
+              <div className="w-8 h-8 rounded-full bg-void-950 border-2 border-white shadow-[0_0_16px_#00D2FF] flex items-center justify-center text-prism-cyan text-xs font-bold pointer-events-auto cursor-ew-resize">
+                ⬌
               </div>
-              <p className="text-[10px] text-slate-300 font-normal">
-                {result ? formatBytes(result.originalSizeBytes) : formatBytes(metadata?.fileSizeBytes)} • {metadata?.primaryVideo?.codecName?.toUpperCase() || 'SOURCE'}
-              </p>
             </div>
-          </div>
+          )}
 
-          {/* Right Stream Badge (Compressed) */}
-          <div className="absolute top-4 right-4 z-20 pointer-events-none">
-            <div className="px-3 py-1.5 rounded-xl bg-void-950/85 backdrop-blur-md border border-prism-cyan/50 text-xs font-mono font-bold text-prism-cyan shadow-xl space-y-0.5 text-right">
-              <div className="flex items-center justify-end space-x-1.5">
-                <span>COMPRESSED OUTPUT</span>
-                <span className="w-2 h-2 rounded-full bg-prism-cyan shadow-[0_0_8px_#00D2FF]" />
+          {/* Dynamic Badges depending on Difference Mode */}
+          {isDifferenceMode ? (
+            <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+              <div className="px-3.5 py-1.5 rounded-xl bg-void-950/90 backdrop-blur-md border border-prism-magenta/50 text-xs font-mono font-bold text-prism-magenta shadow-xl space-y-0.5">
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-prism-magenta shadow-[0_0_8px_#FF2A85]" />
+                  <span>COMPRESSION RESIDUAL HEATMAP (18x AMPLIFIED)</span>
+                </div>
+                <p className="text-[10px] text-slate-300 font-normal">
+                  Black = Bit-identical pixels • Glowing pixels = Compression alterations
+                </p>
               </div>
-              <p className="text-[10px] text-slate-300 font-normal">
-                {result ? `${formatBytes(result.compressedSizeBytes)} (-${result.savedPercent}%)` : 'COMPRESSED'} • {result?.actualVideoCodec?.toUpperCase() || 'OPTIMIZED'}
-              </p>
+
+              <div className="px-3 py-1.5 rounded-xl bg-void-950/80 backdrop-blur-md border border-white/20 text-xs font-mono text-slate-300">
+                {result ? `${formatBytes(result.compressedSizeBytes)} (${result.actualVideoCodec.toUpperCase()})` : ''}
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Left Stream Badge (Original) */}
+              <div className="absolute top-4 left-4 z-20 pointer-events-none">
+                <div className="px-3 py-1.5 rounded-xl bg-void-950/85 backdrop-blur-md border border-white/20 text-xs font-mono font-bold text-white shadow-xl space-y-0.5">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-slate-400" />
+                    <span>ORIGINAL SOURCE</span>
+                  </div>
+                  <p className="text-[10px] text-slate-300 font-normal">
+                    {result ? formatBytes(result.originalSizeBytes) : formatBytes(metadata?.fileSizeBytes)} • {metadata?.primaryVideo?.codecName?.toUpperCase() || 'SOURCE'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Right Stream Badge (Compressed) */}
+              <div className="absolute top-4 right-4 z-20 pointer-events-none">
+                <div className="px-3 py-1.5 rounded-xl bg-void-950/85 backdrop-blur-md border border-prism-cyan/50 text-xs font-mono font-bold text-prism-cyan shadow-xl space-y-0.5 text-right">
+                  <div className="flex items-center justify-end space-x-1.5">
+                    <span>COMPRESSED OUTPUT</span>
+                    <span className="w-2 h-2 rounded-full bg-prism-cyan shadow-[0_0_8px_#00D2FF]" />
+                  </div>
+                  <p className="text-[10px] text-slate-300 font-normal">
+                    {result ? `${formatBytes(result.compressedSizeBytes)} (-${result.savedPercent}%)` : 'COMPRESSED'} • {result?.actualVideoCodec?.toUpperCase() || 'OPTIMIZED'}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Helpful Difference Mode Bottom Banner */}
+          {isDifferenceMode && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+              <div className="px-4 py-1.5 rounded-full bg-void-950/90 backdrop-blur-md border border-prism-magenta/40 text-[11px] font-sans text-slate-300 shadow-xl flex items-center space-x-2">
+                <Info className="w-3.5 h-3.5 text-prism-magenta" />
+                <span>If a frame is 100% black, the compression is mathematically lossless on those pixels.</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 3. Player Controls Bar */}

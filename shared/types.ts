@@ -202,6 +202,8 @@ export interface HardwareStatus {
   hasNvidia: boolean;
   hasIntel: boolean;
   hasAmd: boolean;
+  hasMf: boolean;
+  gpuModel?: string;
   encoders: HardwareEncoderSupport[];
   recommendedH264: string;
   recommendedHEVC: string;
