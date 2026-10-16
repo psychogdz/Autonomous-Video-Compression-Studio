@@ -8,7 +8,32 @@ const execFileAsync = promisify(execFile);
 let cachedHardwareStatus: HardwareStatus | null = null;
 
 /**
- * Probes FFmpeg build to detect available hardware encoders.
+ * Actively checks if an encoder can initialize on this specific hardware and driver.
+ */
+async function testEncoder(ffmpegPath: string, encoderId: string): Promise<boolean> {
+  // Software encoders are always verified
+  if (encoderId.startsWith('lib')) return true;
+
+  try {
+    const isWindows = process.platform === 'win32';
+    const nullOut = isWindows ? 'NUL' : '/dev/null';
+    await execFileAsync(ffmpegPath, [
+      '-y',
+      '-f', 'lavfi',
+      '-i', 'color=s=64x64:d=0.04',
+      '-c:v', encoderId,
+      '-frames:v', '1',
+      '-f', 'null',
+      nullOut,
+    ], { timeout: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Probes FFmpeg build to detect verified working hardware encoders.
  */
 export async function detectHardwareCapabilities(): Promise<HardwareStatus> {
   if (cachedHardwareStatus) {
@@ -25,7 +50,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareStatus> {
     encodersOutput = err.stdout || '';
   }
 
-  const hasEncoder = (name: string): boolean => {
+  const hasCompiledEncoder = (name: string): boolean => {
     const regex = new RegExp(`^\\s*V[F.][S.][X.][B.][D.]\\s+${name}\\s+`, 'm');
     return regex.test(encodersOutput);
   };
@@ -36,7 +61,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareStatus> {
     codec: 'h264' | 'hevc' | 'av1';
     type: 'nvenc' | 'qsv' | 'amf' | 'mf' | 'cpu';
   }> = [
-    // NVIDIA
+    // NVIDIA NVENC
     { id: 'h264_nvenc', name: 'NVIDIA NVENC H.264', codec: 'h264', type: 'nvenc' },
     { id: 'hevc_nvenc', name: 'NVIDIA NVENC HEVC (H.265)', codec: 'hevc', type: 'nvenc' },
     { id: 'av1_nvenc', name: 'NVIDIA NVENC AV1', codec: 'av1', type: 'nvenc' },
@@ -48,28 +73,40 @@ export async function detectHardwareCapabilities(): Promise<HardwareStatus> {
     { id: 'h264_amf', name: 'AMD AMF H.264', codec: 'h264', type: 'amf' },
     { id: 'hevc_amf', name: 'AMD AMF HEVC', codec: 'hevc', type: 'amf' },
     { id: 'av1_amf', name: 'AMD AMF AV1', codec: 'av1', type: 'amf' },
+    // Windows MediaFoundation
+    { id: 'h264_mf', name: 'MediaFoundation H.264 (Windows GPU)', codec: 'h264', type: 'mf' },
     // CPU fallback
     { id: 'libx264', name: 'x264 (Software CPU)', codec: 'h264', type: 'cpu' },
     { id: 'libx265', name: 'x265 (Software CPU)', codec: 'hevc', type: 'cpu' },
     { id: 'libsvtav1', name: 'SVT-AV1 (Software CPU)', codec: 'av1', type: 'cpu' },
   ];
 
-  const encoders: HardwareEncoderSupport[] = candidateEncoders.map(enc => ({
-    ...enc,
-    available: hasEncoder(enc.id),
-  }));
+  const encoders: HardwareEncoderSupport[] = [];
+
+  for (const enc of candidateEncoders) {
+    if (!hasCompiledEncoder(enc.id)) {
+      encoders.push({ ...enc, available: false });
+      continue;
+    }
+
+    const actuallyWorks = await testEncoder(ffmpegPath, enc.id);
+    encoders.push({ ...enc, available: actuallyWorks });
+  }
 
   const hasNvidia = encoders.some(e => e.type === 'nvenc' && e.available);
   const hasIntel = encoders.some(e => e.type === 'qsv' && e.available);
   const hasAmd = encoders.some(e => e.type === 'amf' && e.available);
+  const hasMf = encoders.some(e => e.type === 'mf' && e.available);
 
   let recommendedH264 = 'libx264';
-  if (hasNvidia && encoders.find(e => e.id === 'h264_nvenc')?.available) {
+  if (hasNvidia) {
     recommendedH264 = 'h264_nvenc';
-  } else if (hasIntel && encoders.find(e => e.id === 'h264_qsv')?.available) {
+  } else if (hasIntel) {
     recommendedH264 = 'h264_qsv';
-  } else if (hasAmd && encoders.find(e => e.id === 'h264_amf')?.available) {
+  } else if (hasAmd) {
     recommendedH264 = 'h264_amf';
+  } else if (hasMf) {
+    recommendedH264 = 'h264_mf';
   }
 
   let recommendedHEVC = 'libx265';

@@ -25,6 +25,7 @@ export type VideoCodec =
   | 'hevc_qsv'
   | 'h264_amf'
   | 'hevc_amf'
+  | 'h264_mf'
   | 'gif';
 
 export type EncoderSpeedPreset =

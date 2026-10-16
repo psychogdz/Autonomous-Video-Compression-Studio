@@ -174,7 +174,17 @@ export function makeCompressionDecision(
       }
 
       case 'telegram_fast': {
-        resolvedCodec = simple.useHardwareAccel && hasNvenc ? 'h264_nvenc' : 'libx264';
+        const workingHwEncoder = availableHardwareEncoders.includes('h264_nvenc')
+          ? 'h264_nvenc'
+          : availableHardwareEncoders.includes('h264_mf')
+          ? 'h264_mf'
+          : availableHardwareEncoders.includes('h264_qsv')
+          ? 'h264_qsv'
+          : availableHardwareEncoders.includes('h264_amf')
+          ? 'h264_amf'
+          : undefined;
+
+        resolvedCodec = simple.useHardwareAccel && workingHwEncoder ? (workingHwEncoder as VideoCodec) : 'libx264';
         crf = 25;
         resolvedPreset = 'veryfast';
         targetAudioBitrateKbps = 128;
@@ -194,7 +204,11 @@ export function makeCompressionDecision(
           resolvedHeight = dims.height;
           warnings.push(`Downscaled to 720p to maintain efficient GIF file size.`);
         }
-        estimatedSizeBytes = Math.round(resolvedWidth * resolvedHeight * resolvedFps * durationSeconds * 0.22);
+        const effectiveGifDuration = Math.min(15, durationSeconds);
+        if (durationSeconds > 15) {
+          warnings.push('Animated GIF export duration capped to the first 15 seconds for optimal web messaging and file size.');
+        }
+        estimatedSizeBytes = Math.round(resolvedWidth * resolvedHeight * resolvedFps * effectiveGifDuration * 0.22);
         explanation = 'Animated GIF: Exporting high-fidelity animated GIF using 256-color palettegen with Lanczos scaling and Bayer dithering.';
         break;
       }

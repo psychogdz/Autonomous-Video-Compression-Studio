@@ -261,6 +261,12 @@ function executePass(args: PassExecutionArgs): Promise<{ frames: number; speed: 
       const targetFps = decision.resolvedFps || 15;
       const targetWidth = decision.resolvedWidth;
       const targetHeight = decision.resolvedHeight;
+
+      // Cap long video GIF exports to 15 seconds for web and messaging usability
+      if (probe.durationSeconds > 15) {
+        ffmpegArgs.push('-t', '15');
+      }
+
       const filterComplex = `[0:v] fps=${targetFps},scale=${targetWidth}:${targetHeight}:flags=lanczos,split [a][b];[a] palettegen=max_colors=256:stats_mode=single [p];[b][p] paletteuse=dither=bayer:bayer_scale=5`;
 
       ffmpegArgs.push('-filter_complex', filterComplex);
@@ -278,7 +284,9 @@ function executePass(args: PassExecutionArgs): Promise<{ frames: number; speed: 
       ffmpegArgs.push('-c:v', decision.resolvedCodec);
 
       // Preset
-      if (!decision.resolvedCodec.includes('nvenc')) {
+      if (decision.resolvedCodec.includes('mf')) {
+        // MediaFoundation configures rate control and optimization internally
+      } else if (!decision.resolvedCodec.includes('nvenc')) {
         ffmpegArgs.push('-preset', decision.resolvedPreset);
       } else {
         // NVENC uses p1 - p7 presets
@@ -302,7 +310,11 @@ function executePass(args: PassExecutionArgs): Promise<{ frames: number; speed: 
         ffmpegArgs.push('-maxrate', `${Math.round(decision.targetVideoBitrateKbps * 1.5)}k`);
         ffmpegArgs.push('-bufsize', `${Math.round(decision.targetVideoBitrateKbps * 2)}k`);
       } else if (decision.crf !== undefined) {
-        ffmpegArgs.push('-crf', decision.crf.toString());
+        if (decision.resolvedCodec.includes('mf')) {
+          ffmpegArgs.push('-b:v', '2500k');
+        } else {
+          ffmpegArgs.push('-crf', decision.crf.toString());
+        }
       }
 
       // Audio & Output handling per pass
