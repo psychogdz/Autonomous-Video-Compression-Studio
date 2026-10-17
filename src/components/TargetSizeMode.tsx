@@ -1,14 +1,15 @@
 import React from 'react';
-import { Target, Sliders, CheckCircle2, Info } from 'lucide-react';
+import { Target, Sliders, CheckCircle2, Info, Zap } from 'lucide-react';
 import { TargetSizeModeConfig, MediaProbeResult } from '../../shared/types';
 
 interface TargetSizeModeProps {
   config: TargetSizeModeConfig;
   onChange: (config: TargetSizeModeConfig) => void;
   probe: MediaProbeResult;
+  hasGpu: boolean;
 }
 
-export const TargetSizeMode: React.FC<TargetSizeModeProps> = ({ config, onChange, probe }) => {
+export const TargetSizeMode: React.FC<TargetSizeModeProps> = ({ config, onChange, probe, hasGpu }) => {
   const sourceMB = Math.round((probe.fileSizeBytes / (1024 * 1024)) * 10) / 10;
   const duration = Math.max(1, probe.durationSeconds);
 
@@ -171,6 +172,57 @@ export const TargetSizeMode: React.FC<TargetSizeModeProps> = ({ config, onChange
             </p>
           </div>
         </label>
+
+        {/* GPU vs CPU selection in Target Size Mode */}
+        {hasGpu && (
+          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between">
+            <label className="flex items-center space-x-2.5 text-xs text-slate-200 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={config.preferHardware ?? false}
+                onChange={(e) => onChange({ ...config, preferHardware: e.target.checked })}
+                className="rounded bg-void-950 border-white/20 text-prism-cyan focus:ring-prism-cyan w-4 h-4"
+              />
+              <span className="font-semibold flex items-center space-x-1.5">
+                <Zap className="w-3.5 h-3.5 text-prism-amber" />
+                <span>GPU Acceleration (Single-Pass Bitrate Allocation)</span>
+              </span>
+            </label>
+            <span className="text-[11px] text-prism-mint font-mono font-medium">
+              {config.preferHardware ? 'GPU: CPU usage < 10%' : 'CPU 2-Pass'}
+            </span>
+          </div>
+        )}
+
+        {/* CPU Load Limiter if GPU is off */}
+        {(!config.preferHardware || !hasGpu) && (
+          <div className="p-3 rounded-xl bg-void-950/80 border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2">
+            <div>
+              <span className="text-xs font-bold text-white block">CPU Load Limiter</span>
+              <span className="text-[11px] text-slate-400">Controls CPU percentage to prevent 100% freezing</span>
+            </div>
+            <div className="inline-flex p-1 bg-void-900 rounded-xl border border-white/10 text-xs shrink-0">
+              {(['eco', 'balanced', 'max'] as const).map((lvl) => {
+                const active = (config.cpuThrottle || 'balanced') === lvl;
+                const label = lvl === 'eco' ? 'Eco (50%)' : lvl === 'balanced' ? 'Balanced (75%)' : 'Max (100%)';
+                return (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => onChange({ ...config, cpuThrottle: lvl })}
+                    className={`px-2.5 py-1 rounded-lg font-mono font-bold text-[11px] transition-all ${
+                      active
+                        ? 'bg-prism-cyan text-void-950 shadow-[0_0_8px_#00D2FF]'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

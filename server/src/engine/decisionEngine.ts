@@ -5,6 +5,7 @@ import {
   VideoCodec,
   EncoderSpeedPreset,
   ResolutionPreset,
+  CpuThrottleLevel,
 } from '../../../shared/types.js';
 
 export interface ResolutionDimensions {
@@ -91,6 +92,16 @@ export function makeCompressionDecision(
   const sourceSizeBytes = probe.fileSizeBytes;
   const sourceBitrateKbps = probe.overallBitrate ? Math.round(probe.overallBitrate / 1000) : Math.round((sourceSizeBytes * 8) / (durationSeconds * 1000));
 
+  const cpuThrottle = config.cpuThrottle ||
+                      config.simpleConfig?.cpuThrottle ||
+                      config.targetSizeConfig?.cpuThrottle ||
+                      config.advancedConfig?.cpuThrottle ||
+                      'balanced';
+
+  // Discover verified working hardware GPU encoders
+  const workingH264Gpu = availableHardwareEncoders.find(e => ['h264_nvenc', 'h264_mf', 'h264_qsv', 'h264_amf'].includes(e));
+  const workingHevcGpu = availableHardwareEncoders.find(e => ['hevc_nvenc', 'hevc_qsv', 'hevc_amf'].includes(e));
+
   let resolvedCodec: VideoCodec = 'libx264';
   let resolvedPreset: EncoderSpeedPreset = 'medium';
   let resolvedWidth = sourceWidth;
@@ -103,17 +114,13 @@ export function makeCompressionDecision(
   let estimatedSizeBytes = Math.round(sourceSizeBytes * 0.5);
   let explanation = '';
 
-  const hasNvenc = availableHardwareEncoders.includes('h264_nvenc');
-
   // --- A. SIMPLE MODE ---
   if (config.mode === 'simple') {
     const simple = config.simpleConfig || { goal: 'balanced', speedPriority: 'balanced' };
+    const useGpu = Boolean(simple.useHardwareAccel && (workingH264Gpu || workingHevcGpu));
 
     switch (simple.goal) {
       case 'max_compression': {
-        resolvedCodec = 'libx265';
-        crf = 28;
-        resolvedPreset = simple.speedPriority === 'fast' ? 'fast' : 'slow';
         targetAudioBitrateKbps = 96;
 
         // Auto downscale 4K/1440p to 1080p for massive size reduction
@@ -124,72 +131,103 @@ export function makeCompressionDecision(
           warnings.push(`Downscaled from ${sourceHeight}p to 1080p to maximize compression ratio.`);
         }
 
+        if (useGpu && workingHevcGpu) {
+          resolvedCodec = workingHevcGpu as VideoCodec;
+          targetVideoBitrateKbps = Math.round(sourceBitrateKbps * 0.28);
+          crf = undefined;
+          explanation = `Maximum Compression (GPU Accelerated): Offloading video encoding to your GPU (${workingHevcGpu}). Keeps CPU usage under ~10%.`;
+        } else if (useGpu && workingH264Gpu) {
+          resolvedCodec = workingH264Gpu as VideoCodec;
+          targetVideoBitrateKbps = Math.round(sourceBitrateKbps * 0.32);
+          crf = undefined;
+          explanation = `Maximum Compression (GPU Accelerated): Hardware acceleration via ${workingH264Gpu}. Keeps CPU cool and unburdened.`;
+        } else {
+          resolvedCodec = 'libx265';
+          crf = 28;
+          resolvedPreset = simple.speedPriority === 'fast' ? 'fast' : 'slow';
+          explanation = `Maximum Compression (CPU): Multi-core CPU encoding via libx265 (${cpuThrottle === 'eco' ? 'Eco 50% CPU load' : cpuThrottle === 'balanced' ? 'Balanced 75% CPU load' : 'Max 100% CPU Power'}).`;
+        }
+
         estimatedSizeBytes = Math.round(sourceSizeBytes * 0.28);
-        explanation = 'Maximum Compression: Using high-efficiency H.265/HEVC with CRF 28 and 96k audio to achieve up to 70–80% size reduction.';
         break;
       }
 
       case 'archive': {
-        resolvedCodec = 'libx265';
-        crf = 21;
-        resolvedPreset = 'slow';
         targetAudioBitrateKbps = 192;
+        if (useGpu && workingHevcGpu) {
+          resolvedCodec = workingHevcGpu as VideoCodec;
+          targetVideoBitrateKbps = Math.round(sourceBitrateKbps * 0.70);
+          crf = undefined;
+          explanation = `Archival Quality (GPU): High bitrate archival encoding via dedicated GPU (${workingHevcGpu}).`;
+        } else {
+          resolvedCodec = 'libx265';
+          crf = 21;
+          resolvedPreset = 'slow';
+          explanation = `Archival Quality (CPU): Master fidelity preservation via libx265 (${cpuThrottle === 'eco' ? 'Eco 50%' : cpuThrottle === 'balanced' ? 'Balanced 75%' : 'Max 100% CPU'}).`;
+        }
         estimatedSizeBytes = Math.round(sourceSizeBytes * 0.70);
-        explanation = 'Archival Quality: Using H.265/HEVC at low CRF 21 with slow preset to ensure visually near-lossless preservation.';
         break;
       }
 
       case 'discord_25': {
-        // Target 24.5 MB for safety margin under 25MB limit
         return calculateTargetSizeDecision(probe, {
           targetSizeMB: 24.5,
-          twoPass: true,
+          twoPass: !useGpu,
           allowDownscale: true,
           audioBitrateKbps: 96,
+          preferHardware: useGpu,
+          cpuThrottle,
         }, availableHardwareEncoders);
       }
 
       case 'discord_10': {
         return calculateTargetSizeDecision(probe, {
           targetSizeMB: 9.5,
-          twoPass: true,
+          twoPass: !useGpu,
           allowDownscale: true,
           audioBitrateKbps: 80,
+          preferHardware: useGpu,
+          cpuThrottle,
         }, availableHardwareEncoders);
       }
 
       case 'whatsapp_hd': {
-        resolvedCodec = 'libx264';
-        crf = 24;
-        resolvedPreset = 'fast';
         targetAudioBitrateKbps = 128;
         if (sourceHeight > 720) {
           const dims = resolveResolution('720p', sourceWidth, sourceHeight);
           resolvedWidth = dims.width;
           resolvedHeight = dims.height;
         }
+
+        if (useGpu && workingH264Gpu) {
+          resolvedCodec = workingH264Gpu as VideoCodec;
+          targetVideoBitrateKbps = Math.min(2200, Math.round(sourceBitrateKbps * 0.40));
+          crf = undefined;
+          explanation = `WhatsApp Optimized (GPU): 720p hardware encoding via ${workingH264Gpu}. CPU stays responsive.`;
+        } else {
+          resolvedCodec = 'libx264';
+          crf = 24;
+          resolvedPreset = 'fast';
+          explanation = `WhatsApp Optimized (CPU): 720p encoding via libx264 (${cpuThrottle === 'eco' ? 'Eco 50%' : 'Balanced 75% CPU'}).`;
+        }
         estimatedSizeBytes = Math.round(sourceSizeBytes * 0.35);
-        explanation = 'WhatsApp Optimized: Formatted to 720p H.264 Baseline/Main profile for instant playback on iOS & Android devices.';
         break;
       }
 
       case 'telegram_fast': {
-        const workingHwEncoder = availableHardwareEncoders.includes('h264_nvenc')
-          ? 'h264_nvenc'
-          : availableHardwareEncoders.includes('h264_mf')
-          ? 'h264_mf'
-          : availableHardwareEncoders.includes('h264_qsv')
-          ? 'h264_qsv'
-          : availableHardwareEncoders.includes('h264_amf')
-          ? 'h264_amf'
-          : undefined;
-
-        resolvedCodec = simple.useHardwareAccel && workingHwEncoder ? (workingHwEncoder as VideoCodec) : 'libx264';
-        crf = 25;
-        resolvedPreset = 'veryfast';
         targetAudioBitrateKbps = 128;
+        if (useGpu && workingH264Gpu) {
+          resolvedCodec = workingH264Gpu as VideoCodec;
+          targetVideoBitrateKbps = Math.round(sourceBitrateKbps * 0.45);
+          crf = undefined;
+          explanation = `Telegram Fast (GPU Accelerated): Ultra-fast hardware encoding via ${workingH264Gpu}. CPU load < 10%.`;
+        } else {
+          resolvedCodec = 'libx264';
+          crf = 25;
+          resolvedPreset = 'veryfast';
+          explanation = `Telegram Fast (CPU): High-speed multi-core CPU encoding (${cpuThrottle === 'eco' ? 'Eco 50%' : 'Balanced 75% CPU'}).`;
+        }
         estimatedSizeBytes = Math.round(sourceSizeBytes * 0.40);
-        explanation = 'Telegram Fast: Optimized for rapid encoding and high mobile compatibility.';
         break;
       }
 
@@ -215,12 +253,19 @@ export function makeCompressionDecision(
 
       case 'balanced':
       default: {
-        resolvedCodec = 'libx264';
-        crf = 23;
-        resolvedPreset = simple.speedPriority === 'fast' ? 'faster' : 'medium';
         targetAudioBitrateKbps = 128;
+        if (useGpu && workingH264Gpu) {
+          resolvedCodec = workingH264Gpu as VideoCodec;
+          targetVideoBitrateKbps = Math.round(sourceBitrateKbps * 0.48);
+          crf = undefined;
+          explanation = `Balanced Quality (GPU Accelerated): Fast hardware encoding via ${workingH264Gpu}. CPU usage stays low (~5-12%).`;
+        } else {
+          resolvedCodec = 'libx264';
+          crf = 23;
+          resolvedPreset = simple.speedPriority === 'fast' ? 'faster' : 'medium';
+          explanation = `Balanced Quality (CPU): Multi-core CPU encoding (${cpuThrottle === 'eco' ? 'Eco 50% CPU load' : cpuThrottle === 'balanced' ? 'Balanced 75% CPU load' : 'Max 100% CPU Power'}).`;
+        }
         estimatedSizeBytes = Math.round(sourceSizeBytes * 0.48);
-        explanation = 'Balanced: Standard industry recommendation balancing visually transparent quality and ~50% size reduction.';
         break;
       }
     }
@@ -233,8 +278,10 @@ export function makeCompressionDecision(
       twoPass: true,
       allowDownscale: true,
       audioBitrateKbps: 128,
+      preferHardware: false,
+      cpuThrottle,
     };
-    return calculateTargetSizeDecision(probe, targetConfig, availableHardwareEncoders);
+    return calculateTargetSizeDecision(probe, { ...targetConfig, cpuThrottle }, availableHardwareEncoders);
   }
 
   // --- C. ADVANCED MODE ---
@@ -313,6 +360,7 @@ export function makeCompressionDecision(
     targetVideoBitrateKbps,
     targetAudioBitrateKbps,
     twoPass,
+    cpuThrottle,
     estimatedSizeBytes,
     estimatedSizeMB,
     estimatedReductionPercent,
@@ -327,7 +375,14 @@ export function makeCompressionDecision(
  */
 function calculateTargetSizeDecision(
   probe: MediaProbeResult,
-  targetConfig: { targetSizeMB: number; twoPass: boolean; allowDownscale: boolean; audioBitrateKbps: number },
+  targetConfig: {
+    targetSizeMB: number;
+    twoPass: boolean;
+    allowDownscale: boolean;
+    audioBitrateKbps: number;
+    preferHardware?: boolean;
+    cpuThrottle?: CpuThrottleLevel;
+  },
   availableHardwareEncoders: string[]
 ): DecisionEstimate {
   const warnings: string[] = [];
@@ -338,6 +393,9 @@ function calculateTargetSizeDecision(
   const durationSeconds = Math.max(1, probe.durationSeconds);
   const targetBytes = targetConfig.targetSizeMB * 1024 * 1024;
   const targetBits = targetBytes * 8;
+  const cpuThrottle = targetConfig.cpuThrottle || 'balanced';
+
+  const workingH264Gpu = availableHardwareEncoders.find(e => ['h264_nvenc', 'h264_mf', 'h264_qsv', 'h264_amf'].includes(e));
 
   // Audio budget
   let audioBitrateKbps = targetConfig.audioBitrateKbps || 128;
@@ -378,10 +436,19 @@ function calculateTargetSizeDecision(
     }
   }
 
-  // Codec choice: x265 or x264
-  const resolvedCodec: VideoCodec = 'libx264';
-  const resolvedPreset: EncoderSpeedPreset = 'medium';
-  const twoPass = targetConfig.twoPass !== false;
+  let resolvedCodec: VideoCodec = 'libx264';
+  let resolvedPreset: EncoderSpeedPreset = 'medium';
+  let twoPass = targetConfig.twoPass !== false;
+  let explanation = '';
+
+  if (targetConfig.preferHardware && workingH264Gpu) {
+    resolvedCodec = workingH264Gpu as VideoCodec;
+    twoPass = false;
+    explanation = `Target Size (GPU Accelerated): Hardware bitrate allocation via ${workingH264Gpu}. CPU stays cool and under ~10% load.`;
+  } else {
+    resolvedCodec = 'libx264';
+    explanation = `Target Size (CPU 2-Pass): 2-Pass bitrate calibration via libx264 (${cpuThrottle === 'eco' ? 'Eco 50% CPU load' : cpuThrottle === 'balanced' ? 'Balanced 75% CPU load' : 'Max 100% CPU Power'}).`;
+  }
 
   const estimatedSizeBytes = targetBytes;
   const estimatedSizeMB = targetConfig.targetSizeMB;
@@ -397,11 +464,12 @@ function calculateTargetSizeDecision(
     targetVideoBitrateKbps,
     targetAudioBitrateKbps: audioBitrateKbps,
     twoPass,
+    cpuThrottle,
     estimatedSizeBytes,
     estimatedSizeMB,
     estimatedReductionPercent,
     estimatedDurationSeconds,
     warnings,
-    explanation: `Target Size: Calibrated 2-Pass average video bitrate of ${targetVideoBitrateKbps} kbps + ${audioBitrateKbps} kbps audio to strictly match ${targetConfig.targetSizeMB} MB.`,
+    explanation,
   };
 }

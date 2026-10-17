@@ -4,6 +4,8 @@
 
 export type CompressionMode = 'simple' | 'target_size' | 'advanced';
 
+export type CpuThrottleLevel = 'eco' | 'balanced' | 'max';
+
 export type SimpleGoal =
   | 'max_compression'   // 70-80% reduction, aggressive CRF
   | 'balanced'          // 50% reduction, indistinguishable quality
@@ -99,6 +101,7 @@ export interface SimpleModeConfig {
   goal: SimpleGoal;
   speedPriority: 'fast' | 'balanced' | 'best_quality';
   useHardwareAccel?: boolean;
+  cpuThrottle?: CpuThrottleLevel;
 }
 
 export interface TargetSizeModeConfig {
@@ -107,6 +110,7 @@ export interface TargetSizeModeConfig {
   allowDownscale: boolean; // Auto-downscale to 720p/480p if budget is too tight
   audioBitrateKbps: number;
   preferHardware?: boolean;
+  cpuThrottle?: CpuThrottleLevel;
 }
 
 export interface AdvancedModeConfig {
@@ -123,12 +127,14 @@ export interface AdvancedModeConfig {
   audioBitrateKbps: number;
   keepSubtitles: boolean;
   stripMetadata: boolean;
+  cpuThrottle?: CpuThrottleLevel;
 }
 
 export interface CompressionJobConfig {
   sourceFilePath: string;
   outputFilePath?: string; // Optional custom destination; auto-generated if omitted
   mode: CompressionMode;
+  cpuThrottle?: CpuThrottleLevel;
   simpleConfig?: SimpleModeConfig;
   targetSizeConfig?: TargetSizeModeConfig;
   advancedConfig?: AdvancedModeConfig;
@@ -144,6 +150,7 @@ export interface DecisionEstimate {
   targetVideoBitrateKbps?: number;
   targetAudioBitrateKbps: number;
   twoPass: boolean;
+  cpuThrottle: CpuThrottleLevel;
   estimatedSizeBytes: number;
   estimatedSizeMB: number;
   estimatedReductionPercent: number;

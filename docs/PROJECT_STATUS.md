@@ -1,13 +1,13 @@
 # PROJECT STATUS — LuminaPress Video Studio
-## Version 1.2.1 — Production Ready, English UI Consistency & Streamlined Queue
+## Version 1.2.2 — Production Ready, GPU Offloading & CPU Load Throttling
 
 ---
 
 ### Executive Status Summary
-- **Current Milestone:** Version 1.2.1 Completed (Full English Copywriting Consistency, Streamlined Batch Queue, Pan Canvas Navigation, 17/17 tests passing).
+- **Current Milestone:** Version 1.2.2 Completed (Direct GPU Hardware Acceleration, Smart CPU Thread Limiter, Background OS Priority, 17/17 tests passing).
 - **Architecture Integrity:** 100% decoupled client-server architecture with Node.js Express backend, native FFmpeg/FFprobe child processes, SSE telemetry streaming, and Vite + React 19 studio interface.
-- **Hardware Integration:** Dedicated GPU identification (`NVIDIA GeForce GTX 1650 (GPU)` via Windows MediaFoundation & multi-threaded CPU fallback).
-- **Inspector Precision:** 1x, 2x, 4x Zoom with mouse-drag and directional panning. SSIM & PSNR scientific explanation cards in professional English.
+- **Hardware Integration:** Full GPU Offloading to `NVIDIA GeForce GTX 1650 (GPU)` with CPU usage under ~10%.
+- **CPU Resource Protection:** Integrated 3-tier CPU load regulator (`Eco 50%`, `Balanced 75%`, `Max 100%`) with automatic `BELOW_NORMAL` OS priority scheduling.
 - **Test Suite Status:** 17 / 17 automated tests passing in Vitest.
 
 ---

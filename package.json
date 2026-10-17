@@ -1,6 +1,6 @@
 {
   "name": "luminapress-video-studio",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Autonomous, professional desktop & local video compression studio",
   "type": "module",
   "private": true,

@@ -97,6 +97,42 @@ export const AdvancedMode: React.FC<AdvancedModeProps> = ({ config, onChange, ha
         </div>
       </div>
 
+      {/* CPU Load Limiter for Software Encoders */}
+      {config.codec.startsWith('lib') && (
+        <div className="p-4 rounded-xl bg-void-900/90 border border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-glass-rim-subtle animate-fade-in">
+          <div>
+            <span className="text-xs font-bold text-white block">
+              CPU Utilization Limiter (Throttling)
+            </span>
+            <span className="text-[11px] text-slate-400">
+              Caps CPU core usage to prevent 100% freezing and keep desktop apps smooth
+            </span>
+          </div>
+
+          <div className="inline-flex p-1 bg-void-950 rounded-xl border border-white/10 text-xs shrink-0">
+            {(['eco', 'balanced', 'max'] as const).map((lvl) => {
+              const active = (config.cpuThrottle || 'balanced') === lvl;
+              const label = lvl === 'eco' ? 'Eco (50% CPU)' : lvl === 'balanced' ? 'Balanced (75%)' : 'Max (100%)';
+              return (
+                <button
+                  key={lvl}
+                  type="button"
+                  onClick={() => onChange({ ...config, cpuThrottle: lvl })}
+                  className={`px-3 py-1.5 rounded-lg font-mono font-bold text-[11px] transition-all ${
+                    active
+                      ? 'bg-prism-cyan text-void-950 shadow-[0_0_8px_#00D2FF]'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title={lvl === 'eco' ? '50% cores used, quiet fans' : lvl === 'balanced' ? '75% cores, Windows stays responsive' : '100% all cores used'}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Rate Control Strategy (CRF vs Target Bitrate) */}
       <div className="p-5 rounded-2xl bg-void-900/90 border border-white/[0.08] shadow-glass-rim space-y-4">
         <div className="flex items-center justify-between">

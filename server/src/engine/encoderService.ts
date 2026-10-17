@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { locateBinaries } from './binaryLocator.js';
 import { probeMedia } from './probeService.js';
 import { makeCompressionDecision } from './decisionEngine.js';
@@ -346,10 +347,42 @@ function executePass(args: PassExecutionArgs): Promise<{ frames: number; speed: 
       }
     }
 
+    // Apply CPU Thread Allotment based on cpuThrottle to prevent 100% CPU lockups
+    const isGpu = decision.resolvedCodec.includes('mf') ||
+                  decision.resolvedCodec.includes('nvenc') ||
+                  decision.resolvedCodec.includes('qsv') ||
+                  decision.resolvedCodec.includes('amf');
+
+    if (!isGpu && decision.resolvedCodec !== 'gif') {
+      const logicalCores = os.cpus()?.length || 4;
+      let targetThreads = logicalCores;
+      if (decision.cpuThrottle === 'eco') {
+        // Eco Mode: Cap to 50% CPU threads (silent fans, computer stays totally smooth)
+        targetThreads = Math.max(1, Math.floor(logicalCores * 0.5));
+      } else if (decision.cpuThrottle === 'balanced') {
+        // Balanced Mode: Cap to ~75% CPU threads (reserves 2-4 cores for Windows & UI)
+        targetThreads = Math.max(1, Math.floor(logicalCores * 0.75));
+      } else {
+        // Max Power: all threads
+        targetThreads = logicalCores;
+      }
+      ffmpegArgs.push('-threads', targetThreads.toString());
+    }
+
     const proc = spawn(ffmpegPath, ffmpegArgs, {
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+
+    // Lower process priority to BELOW_NORMAL so the OS scheduler guarantees
+    // the user's browser, desktop, and games never lag during video encoding!
+    if (proc.pid && typeof os.setPriority === 'function') {
+      try {
+        os.setPriority(proc.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
+      } catch {
+        // Ignore priority errors
+      }
+    }
 
     job.process = proc;
 

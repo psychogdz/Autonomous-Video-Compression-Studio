@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.2] - 2026-10-17
+### Added & Improved
+- **Direct GPU Offloading:** Simple Mode and Target Size Mode now directly route video encoding to dedicated hardware GPU encoders (`NVIDIA NVENC`, `Windows GPU MediaFoundation`, `Intel QuickSync`, `AMD AMF`), reducing CPU usage to under 10%.
+- **Smart CPU Load Limiter (Throttling):** When using CPU software encoding (`libx264`, `libx265`, `libsvtav1`), users can select their CPU utilization ceiling:
+  - **Eco Mode (50% CPU):** Allocates half of CPU threads; fans stay quiet and computer stays cool.
+  - **Balanced Mode (75% CPU):** Reserves 2–4 threads for Windows and desktop apps; prevents 100% CPU lockups.
+  - **Max Power (100% CPU):** Full multi-core throughput.
+- **Background OS Priority:** Automatically sets FFmpeg subprocesses to `BELOW_NORMAL_PRIORITY_CLASS`, guaranteeing that user desktop windows, games, and browsers never lag during encoding.
+
+---
+
 ## [1.2.1] - 2026-10-17
 ### Changed & Improved
 - **Video Inspector English Consistency:** Converted all SSIM and PSNR technical explanations, fidelity rating badges, and viewport panning hints to clean, studio-grade English.

@@ -208,26 +208,64 @@ export const SimpleMode: React.FC<SimpleModeProps> = ({ config, onChange, hasGpu
           </div>
         </div>
 
-        {/* GPU Acceleration Toggle with explanation */}
-        {hasGpu && (
-          <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between">
-            <label className="flex items-center space-x-2.5 text-xs text-slate-200 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={config.useHardwareAccel ?? true}
-                onChange={(e) => onChange({ ...config, useHardwareAccel: e.target.checked })}
-                className="rounded bg-void-950 border-white/20 text-prism-cyan focus:ring-prism-cyan w-4 h-4"
-              />
-              <span className="font-semibold flex items-center space-x-1.5">
-                <Zap className="w-3.5 h-3.5 text-prism-amber" />
-                <span>Hardware GPU Acceleration</span>
+        {/* GPU Acceleration & CPU Load Limiter Bar */}
+        <div className="pt-3 border-t border-white/[0.06] space-y-3">
+          {hasGpu && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <label className="flex items-center space-x-2.5 text-xs text-slate-200 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={config.useHardwareAccel ?? true}
+                  onChange={(e) => onChange({ ...config, useHardwareAccel: e.target.checked })}
+                  className="rounded bg-void-950 border-white/20 text-prism-cyan focus:ring-prism-cyan w-4 h-4"
+                />
+                <span className="font-semibold flex items-center space-x-1.5">
+                  <Zap className="w-3.5 h-3.5 text-prism-amber" />
+                  <span>Hardware GPU Acceleration (Offload to Graphics Card)</span>
+                </span>
+              </label>
+              <span className="text-[11px] text-prism-mint font-mono font-medium pl-6 sm:pl-0">
+                {(config.useHardwareAccel ?? true) ? 'Active: CPU load drops under ~10%' : 'Disabled'}
               </span>
-            </label>
-            <span className="text-[11px] text-slate-400 hidden sm:inline font-mono">
-              Leverages dedicated GPU cores for 3x–6x faster encoding
-            </span>
-          </div>
-        )}
+            </div>
+          )}
+
+          {/* CPU Thread & Load Regulator */}
+          {(!(config.useHardwareAccel ?? true) || !hasGpu) && (
+            <div className="p-3 rounded-xl bg-void-950/80 border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-2 animate-fade-in">
+              <div>
+                <span className="text-xs font-bold text-white block">
+                  CPU Load Limiter (Throttling)
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Prevents CPU from pegging at 100% so your PC stays cool and responsive
+                </span>
+              </div>
+
+              <div className="inline-flex p-1 bg-void-900 rounded-xl border border-white/10 text-xs shrink-0">
+                {(['eco', 'balanced', 'max'] as const).map((lvl) => {
+                  const active = (config.cpuThrottle || 'balanced') === lvl;
+                  const label = lvl === 'eco' ? 'Eco (50%)' : lvl === 'balanced' ? 'Balanced (75%)' : 'Max (100%)';
+                  return (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => onChange({ ...config, cpuThrottle: lvl })}
+                      className={`px-2.5 py-1 rounded-lg font-mono font-bold text-[11px] transition-all ${
+                        active
+                          ? 'bg-prism-cyan text-void-950 shadow-[0_0_8px_#00D2FF]'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title={lvl === 'eco' ? 'Silent fans, 50% CPU' : lvl === 'balanced' ? 'Balanced 75% CPU' : 'Uncapped 100% CPU'}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

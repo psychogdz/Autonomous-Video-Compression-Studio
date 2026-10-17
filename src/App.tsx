@@ -391,7 +391,7 @@ export const App: React.FC = () => {
                     <SimpleMode
                       config={simpleConfig}
                       onChange={setSimpleConfig}
-                      hasGpu={!!(hardware?.hasNvidia || hardware?.hasIntel || hardware?.hasAmd)}
+                      hasGpu={Boolean(hardware?.hasNvidia || hardware?.hasIntel || hardware?.hasAmd || hardware?.hasMf)}
                     />
                   )}
 
@@ -400,6 +400,7 @@ export const App: React.FC = () => {
                       config={targetSizeConfig}
                       onChange={setTargetSizeConfig}
                       probe={metadata}
+                      hasGpu={Boolean(hardware?.hasNvidia || hardware?.hasIntel || hardware?.hasAmd || hardware?.hasMf)}
                     />
                   )}
 
