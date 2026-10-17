@@ -262,12 +262,35 @@ function executePass(args: PassExecutionArgs): Promise<{ frames: number; speed: 
       jobId,
     } = args;
 
+    const isGpu = decision.resolvedCodec.includes('mf') ||
+                  decision.resolvedCodec.includes('nvenc') ||
+                  decision.resolvedCodec.includes('qsv') ||
+                  decision.resolvedCodec.includes('amf');
+
+    const logicalCores = os.cpus()?.length || 4;
+    let targetThreads = logicalCores;
+    if (decision.cpuThrottle === 'eco') {
+      targetThreads = Math.max(1, Math.floor(logicalCores * 0.5));
+    } else if (decision.cpuThrottle === 'balanced') {
+      targetThreads = Math.max(1, Math.floor(logicalCores * 0.75));
+    } else {
+      targetThreads = logicalCores;
+    }
+
     const ffmpegArgs: string[] = [
       '-y', // overwrite target if needed (already guarded by generateSafeOutputPath)
       '-v', 'info',
       '-progress', 'pipe:1',
-      '-i', sourceFilePath,
     ];
+
+    // Hardware decoding offload or CPU thread regulation on input demuxer
+    if (isGpu) {
+      ffmpegArgs.push('-hwaccel', 'auto');
+    } else {
+      ffmpegArgs.push('-threads', targetThreads.toString());
+    }
+
+    ffmpegArgs.push('-i', sourceFilePath);
 
     // Video Encoding or GIF Creation
     if (decision.resolvedCodec === 'gif') {
@@ -324,9 +347,20 @@ function executePass(args: PassExecutionArgs): Promise<{ frames: number; speed: 
         ffmpegArgs.push('-bufsize', `${Math.round(decision.targetVideoBitrateKbps * 2)}k`);
       } else if (decision.crf !== undefined) {
         if (decision.resolvedCodec.includes('mf')) {
-          ffmpegArgs.push('-b:v', '2500k');
+          const fallbackBitrate = decision.targetVideoBitrateKbps || 1500;
+          ffmpegArgs.push('-b:v', `${fallbackBitrate}k`);
         } else {
           ffmpegArgs.push('-crf', decision.crf.toString());
+        }
+      }
+
+      // Apply CPU Thread Allotment directly to encoder library before output target
+      if (!isGpu) {
+        ffmpegArgs.push('-threads', targetThreads.toString());
+        if (decision.resolvedCodec === 'libx264') {
+          ffmpegArgs.push('-x264opts', `threads=${targetThreads}`);
+        } else if (decision.resolvedCodec === 'libx265') {
+          ffmpegArgs.push('-x265-params', `pools=${targetThreads}:frame-threads=${Math.min(targetThreads, 4)}`);
         }
       }
 
@@ -345,28 +379,6 @@ function executePass(args: PassExecutionArgs): Promise<{ frames: number; speed: 
         ffmpegArgs.push('-movflags', '+faststart'); // web streaming optimization
         ffmpegArgs.push(targetFilePath);
       }
-    }
-
-    // Apply CPU Thread Allotment based on cpuThrottle to prevent 100% CPU lockups
-    const isGpu = decision.resolvedCodec.includes('mf') ||
-                  decision.resolvedCodec.includes('nvenc') ||
-                  decision.resolvedCodec.includes('qsv') ||
-                  decision.resolvedCodec.includes('amf');
-
-    if (!isGpu && decision.resolvedCodec !== 'gif') {
-      const logicalCores = os.cpus()?.length || 4;
-      let targetThreads = logicalCores;
-      if (decision.cpuThrottle === 'eco') {
-        // Eco Mode: Cap to 50% CPU threads (silent fans, computer stays totally smooth)
-        targetThreads = Math.max(1, Math.floor(logicalCores * 0.5));
-      } else if (decision.cpuThrottle === 'balanced') {
-        // Balanced Mode: Cap to ~75% CPU threads (reserves 2-4 cores for Windows & UI)
-        targetThreads = Math.max(1, Math.floor(logicalCores * 0.75));
-      } else {
-        // Max Power: all threads
-        targetThreads = logicalCores;
-      }
-      ffmpegArgs.push('-threads', targetThreads.toString());
     }
 
     const proc = spawn(ffmpegPath, ffmpegArgs, {

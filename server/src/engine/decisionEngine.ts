@@ -98,6 +98,29 @@ export function makeCompressionDecision(
                       config.advancedConfig?.cpuThrottle ||
                       'balanced';
 
+  const sourceAudioBitrateKbps = probe.primaryAudio?.bitrate
+    ? Math.round(probe.primaryAudio.bitrate / 1000)
+    : 128;
+
+  // Calculate actual source video-only bitrate
+  let sourceVideoBitrateKbps = primaryVideo?.bitrate
+    ? Math.round(primaryVideo.bitrate / 1000)
+    : Math.max(50, sourceBitrateKbps - sourceAudioBitrateKbps);
+
+  if (sourceVideoBitrateKbps <= 0) {
+    sourceVideoBitrateKbps = Math.max(50, Math.round(sourceBitrateKbps * 0.7));
+  }
+
+  const isUltraLowBitrate = sourceVideoBitrateKbps < 350;
+
+  // Adaptive default audio allocation (prevent audio from dominating small video budgets)
+  let defaultAudioBitrate = 128;
+  if (isUltraLowBitrate) {
+    defaultAudioBitrate = Math.min(64, Math.max(40, sourceAudioBitrateKbps));
+  } else if (sourceVideoBitrateKbps < 800) {
+    defaultAudioBitrate = 96;
+  }
+
   // Discover verified working hardware GPU encoders
   const workingH264Gpu = availableHardwareEncoders.find(e => ['h264_nvenc', 'h264_mf', 'h264_qsv', 'h264_amf'].includes(e));
   const workingHevcGpu = availableHardwareEncoders.find(e => ['hevc_nvenc', 'hevc_qsv', 'hevc_amf'].includes(e));
@@ -109,7 +132,7 @@ export function makeCompressionDecision(
   let resolvedFps = sourceFps;
   let crf: number | undefined = 23;
   let targetVideoBitrateKbps: number | undefined;
-  let targetAudioBitrateKbps = 128;
+  let targetAudioBitrateKbps = defaultAudioBitrate;
   let twoPass = false;
   let estimatedSizeBytes = Math.round(sourceSizeBytes * 0.5);
   let explanation = '';
@@ -121,7 +144,7 @@ export function makeCompressionDecision(
 
     switch (simple.goal) {
       case 'max_compression': {
-        targetAudioBitrateKbps = 96;
+        targetAudioBitrateKbps = isUltraLowBitrate ? 48 : 96;
 
         // Auto downscale 4K/1440p to 1080p for massive size reduction
         if (sourceHeight > 1080) {
@@ -133,17 +156,17 @@ export function makeCompressionDecision(
 
         if (useGpu && workingHevcGpu) {
           resolvedCodec = workingHevcGpu as VideoCodec;
-          targetVideoBitrateKbps = Math.round(sourceBitrateKbps * 0.28);
+          targetVideoBitrateKbps = Math.max(35, Math.round(sourceVideoBitrateKbps * 0.35));
           crf = undefined;
           explanation = `Maximum Compression (GPU Accelerated): Offloading video encoding to your GPU (${workingHevcGpu}). Keeps CPU usage under ~10%.`;
         } else if (useGpu && workingH264Gpu) {
           resolvedCodec = workingH264Gpu as VideoCodec;
-          targetVideoBitrateKbps = Math.round(sourceBitrateKbps * 0.32);
+          targetVideoBitrateKbps = Math.max(45, Math.round(sourceVideoBitrateKbps * 0.45));
           crf = undefined;
           explanation = `Maximum Compression (GPU Accelerated): Hardware acceleration via ${workingH264Gpu}. Keeps CPU cool and unburdened.`;
         } else {
           resolvedCodec = 'libx265';
-          crf = 28;
+          crf = isUltraLowBitrate ? 32 : 28;
           resolvedPreset = simple.speedPriority === 'fast' ? 'fast' : 'slow';
           explanation = `Maximum Compression (CPU): Multi-core CPU encoding via libx265 (${cpuThrottle === 'eco' ? 'Eco 50% CPU load' : cpuThrottle === 'balanced' ? 'Balanced 75% CPU load' : 'Max 100% CPU Power'}).`;
         }
@@ -153,10 +176,10 @@ export function makeCompressionDecision(
       }
 
       case 'archive': {
-        targetAudioBitrateKbps = 192;
+        targetAudioBitrateKbps = isUltraLowBitrate ? 96 : 192;
         if (useGpu && workingHevcGpu) {
           resolvedCodec = workingHevcGpu as VideoCodec;
-          targetVideoBitrateKbps = Math.round(sourceBitrateKbps * 0.70);
+          targetVideoBitrateKbps = Math.round(sourceVideoBitrateKbps * 0.75);
           crf = undefined;
           explanation = `Archival Quality (GPU): High bitrate archival encoding via dedicated GPU (${workingHevcGpu}).`;
         } else {
@@ -174,7 +197,7 @@ export function makeCompressionDecision(
           targetSizeMB: 24.5,
           twoPass: !useGpu,
           allowDownscale: true,
-          audioBitrateKbps: 96,
+          audioBitrateKbps: isUltraLowBitrate ? 64 : 96,
           preferHardware: useGpu,
           cpuThrottle,
         }, availableHardwareEncoders);
@@ -185,14 +208,14 @@ export function makeCompressionDecision(
           targetSizeMB: 9.5,
           twoPass: !useGpu,
           allowDownscale: true,
-          audioBitrateKbps: 80,
+          audioBitrateKbps: isUltraLowBitrate ? 48 : 80,
           preferHardware: useGpu,
           cpuThrottle,
         }, availableHardwareEncoders);
       }
 
       case 'whatsapp_hd': {
-        targetAudioBitrateKbps = 128;
+        targetAudioBitrateKbps = isUltraLowBitrate ? 64 : 128;
         if (sourceHeight > 720) {
           const dims = resolveResolution('720p', sourceWidth, sourceHeight);
           resolvedWidth = dims.width;
@@ -201,12 +224,12 @@ export function makeCompressionDecision(
 
         if (useGpu && workingH264Gpu) {
           resolvedCodec = workingH264Gpu as VideoCodec;
-          targetVideoBitrateKbps = Math.min(2200, Math.round(sourceBitrateKbps * 0.40));
+          targetVideoBitrateKbps = Math.min(2200, Math.max(50, Math.round(sourceVideoBitrateKbps * 0.50)));
           crf = undefined;
           explanation = `WhatsApp Optimized (GPU): 720p hardware encoding via ${workingH264Gpu}. CPU stays responsive.`;
         } else {
           resolvedCodec = 'libx264';
-          crf = 24;
+          crf = isUltraLowBitrate ? 28 : 24;
           resolvedPreset = 'fast';
           explanation = `WhatsApp Optimized (CPU): 720p encoding via libx264 (${cpuThrottle === 'eco' ? 'Eco 50%' : 'Balanced 75% CPU'}).`;
         }
@@ -215,15 +238,15 @@ export function makeCompressionDecision(
       }
 
       case 'telegram_fast': {
-        targetAudioBitrateKbps = 128;
+        targetAudioBitrateKbps = isUltraLowBitrate ? 64 : 128;
         if (useGpu && workingH264Gpu) {
           resolvedCodec = workingH264Gpu as VideoCodec;
-          targetVideoBitrateKbps = Math.round(sourceBitrateKbps * 0.45);
+          targetVideoBitrateKbps = Math.max(50, Math.round(sourceVideoBitrateKbps * 0.55));
           crf = undefined;
           explanation = `Telegram Fast (GPU Accelerated): Ultra-fast hardware encoding via ${workingH264Gpu}. CPU load < 10%.`;
         } else {
           resolvedCodec = 'libx264';
-          crf = 25;
+          crf = isUltraLowBitrate ? 29 : 25;
           resolvedPreset = 'veryfast';
           explanation = `Telegram Fast (CPU): High-speed multi-core CPU encoding (${cpuThrottle === 'eco' ? 'Eco 50%' : 'Balanced 75% CPU'}).`;
         }
@@ -253,15 +276,15 @@ export function makeCompressionDecision(
 
       case 'balanced':
       default: {
-        targetAudioBitrateKbps = 128;
+        targetAudioBitrateKbps = defaultAudioBitrate;
         if (useGpu && workingH264Gpu) {
           resolvedCodec = workingH264Gpu as VideoCodec;
-          targetVideoBitrateKbps = Math.round(sourceBitrateKbps * 0.48);
+          targetVideoBitrateKbps = Math.max(50, Math.round(sourceVideoBitrateKbps * 0.55));
           crf = undefined;
           explanation = `Balanced Quality (GPU Accelerated): Fast hardware encoding via ${workingH264Gpu}. CPU usage stays low (~5-12%).`;
         } else {
           resolvedCodec = 'libx264';
-          crf = 23;
+          crf = isUltraLowBitrate ? 27 : 23;
           resolvedPreset = simple.speedPriority === 'fast' ? 'faster' : 'medium';
           explanation = `Balanced Quality (CPU): Multi-core CPU encoding (${cpuThrottle === 'eco' ? 'Eco 50% CPU load' : cpuThrottle === 'balanced' ? 'Balanced 75% CPU load' : 'Max 100% CPU Power'}).`;
         }
